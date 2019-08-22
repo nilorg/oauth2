@@ -1,6 +1,7 @@
 package oauth2
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 )
@@ -39,8 +40,8 @@ func (srv *DefaultServer) Init() {
 			}
 		}
 	}
-	srv.serveMux.HandleFunc("/authorize", srv.HandleAuthorize)
-	srv.serveMux.HandleFunc("/token", srv.HandleToken)
+	srv.serveMux.Handle("/authorize", srv.HandleAuthorize)
+	srv.serveMux.Handle("/token", CloseCacheMiddleware(srv.HandleToken))
 }
 
 func (srv *DefaultServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +75,12 @@ func (srv *DefaultServer) handleAuthorize(w http.ResponseWriter, r *http.Request
 		}
 		break
 	case TokenKey:
-		srv.Service.AuthorizeImplicit(clientID, redirectURIStr, scope, state)
+		model, err := srv.Service.AuthorizeImplicit(clientID, redirectURIStr, scope, state)
+		if err != nil {
+			WriterError(w, err)
+		} else {
+			http.Redirect(w, r, fmt.Sprintf("%s#access_token=%s&state=%s&token_type=%s&expires_in=%d", redirectURIStr, model.AccessToken, state, model.TokenType, model.ExpiresIn), http.StatusFound)
+		}
 		break
 	default:
 		WriterError(w, ErrUnsupportedResponseType)
