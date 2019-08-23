@@ -2,6 +2,25 @@ package oauth2
 
 import "net/http"
 
+// CheckClientBasicMiddleware 检查客户端基本信息
+func CheckClientBasicMiddleware(next http.Handler, check CheckClientBasicFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var clientBasic *ClientBasic
+		var err error
+		clientBasic, err = RequestClientBasic(r)
+		if err != nil {
+			WriterError(w, err)
+			return
+		}
+		err = check(clientBasic)
+		if err != nil {
+			WriterError(w, err)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // CloseCacheMiddleware 关闭缓存中间件
 func CloseCacheMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

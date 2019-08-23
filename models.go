@@ -7,3 +7,8 @@ type TokenResponseModel struct {
 	RefreshToken string `json:"refresh_token"`
 	Scope        string `json:"scope"`
 }
+
+type ClientBasic struct {
+	ID string
+	Secret string
+}

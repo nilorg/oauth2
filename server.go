@@ -7,10 +7,11 @@ import (
 )
 
 type DefaultServer struct {
-	serveMux        *http.ServeMux
-	HandleAuthorize http.HandlerFunc
-	HandleToken     http.HandlerFunc
-	Service         Serveer
+	CheckClientBasic CheckClientBasicFunc
+	serveMux         *http.ServeMux
+	HandleAuthorize  http.HandlerFunc
+	HandleToken      http.HandlerFunc
+	Service          Serveer
 }
 
 func NewServer(service Serveer) *DefaultServer {
@@ -22,6 +23,10 @@ func NewServer(service Serveer) *DefaultServer {
 }
 
 func (srv *DefaultServer) Init() {
+	if srv.CheckClientBasic == nil {
+		panic(ErrCheckClientBasicFuncNil)
+	}
+
 	if srv.HandleAuthorize == nil {
 		srv.HandleAuthorize = func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodGet {
@@ -35,13 +40,15 @@ func (srv *DefaultServer) Init() {
 		srv.HandleToken = func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				WriterError(w, ErrRequestMethod)
+			} else if r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
+				WriterError(w, ErrInvalidRequest)
 			} else {
 				srv.handleToken(w, r)
 			}
 		}
 	}
 	srv.serveMux.Handle("/authorize", srv.HandleAuthorize)
-	srv.serveMux.Handle("/token", CloseCacheMiddleware(srv.HandleToken))
+	srv.serveMux.Handle("/token", CheckClientBasicMiddleware(srv.HandleToken, srv.CheckClientBasic))
 }
 
 func (srv *DefaultServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
@@ -49,41 +56,43 @@ func (srv *DefaultServer) handleAuthorize(w http.ResponseWriter, r *http.Request
 	queryValues := r.URL.Query()
 	responseType := queryValues.Get(ResponseTypeKey)
 	clientID := queryValues.Get(ClientIdKey)
-	if responseType == "" || clientID == "" {
-		WriterError(w, ErrInvalidRequest)
-		return
-	}
-
 	redirectURIStr := queryValues.Get(RedirectUriKey)
-	scope := queryValues.Get(ScopeKey)
-	state := queryValues.Get(StateKey)
-
+	if redirectURIStr == "" {
+		redirectURIStr = ""
+	}
 	redirectURI, err := url.Parse(redirectURIStr)
 	if err != nil {
 		WriterError(w, ErrInvalidRequest)
 		return
 	}
+	scope := queryValues.Get(ScopeKey)
+	state := queryValues.Get(StateKey)
+	if responseType == "" || clientID == "" {
+		RedirectError(w, r, redirectURI, ErrInvalidRequest)
+		return
+	}
+
 	switch responseType {
 	case CodeKey:
 		code, err := srv.Service.AuthorizeAuthorizationCode(clientID, redirectURIStr, scope, state)
 		if err != nil {
-			WriterError(w, err)
+			RedirectError(w, r, redirectURI, ErrInvalidRequest)
 		} else {
 			redirectURI.Query().Set(CodeKey, code)
 			redirectURI.Query().Set(StateKey, state)
-			http.Redirect(w, r, redirectURI.Path, http.StatusFound)
+			RedirectSuccess(w, r, redirectURI, code)
 		}
 		break
 	case TokenKey:
 		model, err := srv.Service.AuthorizeImplicit(clientID, redirectURIStr, scope, state)
 		if err != nil {
-			WriterError(w, err)
+			RedirectError(w, r, redirectURI, err)
 		} else {
 			http.Redirect(w, r, fmt.Sprintf("%s#access_token=%s&state=%s&token_type=%s&expires_in=%d", redirectURIStr, model.AccessToken, state, model.TokenType, model.ExpiresIn), http.StatusFound)
 		}
 		break
 	default:
-		WriterError(w, ErrUnsupportedResponseType)
+		RedirectError(w, r, redirectURI, ErrUnsupportedResponseType)
 		break
 	}
 }

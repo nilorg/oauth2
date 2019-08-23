@@ -9,6 +9,7 @@ const (
 	GrantTypeKey    = "grant_type"
 	CodeKey         = "code"
 	TokenKey        = "token"
+	ErrorKey        = "error"
 	AccessTokenKey  = "access_token"
 	TokenTypeKey    = "token_type"
 )
