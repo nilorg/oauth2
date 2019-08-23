@@ -4,21 +4,24 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type DefaultServer struct {
-	CheckClientBasic CheckClientBasicFunc
-	serveMux         *http.ServeMux
-	HandleAuthorize  http.HandlerFunc
-	HandleToken      http.HandlerFunc
-	Service          Serveer
+	AccessTokenExpire  time.Duration
+	CheckClientBasic   CheckClientBasicFunc
+	serveMux           *http.ServeMux
+	HandleAuthorize    http.HandlerFunc
+	HandleToken        http.HandlerFunc
+	authorizationGrant AuthorizationGranter
 }
 
-func NewServer(service Serveer) *DefaultServer {
+func NewServer(authorizationGrant AuthorizationGranter) *DefaultServer {
 	serveMux := http.NewServeMux()
 	return &DefaultServer{
-		Service:  service,
-		serveMux: serveMux,
+		AccessTokenExpire:  time.Second * 3600,
+		authorizationGrant: authorizationGrant,
+		serveMux:           serveMux,
 	}
 }
 
@@ -57,9 +60,6 @@ func (srv *DefaultServer) handleAuthorize(w http.ResponseWriter, r *http.Request
 	responseType := queryValues.Get(ResponseTypeKey)
 	clientID := queryValues.Get(ClientIdKey)
 	redirectURIStr := queryValues.Get(RedirectUriKey)
-	if redirectURIStr == "" {
-		redirectURIStr = ""
-	}
 	redirectURI, err := url.Parse(redirectURIStr)
 	if err != nil {
 		WriterError(w, ErrInvalidRequest)
@@ -74,17 +74,15 @@ func (srv *DefaultServer) handleAuthorize(w http.ResponseWriter, r *http.Request
 
 	switch responseType {
 	case CodeKey:
-		code, err := srv.Service.AuthorizeAuthorizationCode(clientID, redirectURIStr, scope, state)
+		code, err := srv.authorizationGrant.AuthorizeAuthorizationCode(clientID, redirectURIStr, scope, state)
 		if err != nil {
 			RedirectError(w, r, redirectURI, ErrInvalidRequest)
 		} else {
-			redirectURI.Query().Set(CodeKey, code)
-			redirectURI.Query().Set(StateKey, state)
 			RedirectSuccess(w, r, redirectURI, code)
 		}
 		break
 	case TokenKey:
-		model, err := srv.Service.AuthorizeImplicit(clientID, redirectURIStr, scope, state)
+		model, err := srv.authorizationGrant.AuthorizeImplicit(clientID, redirectURIStr, scope, state)
 		if err != nil {
 			RedirectError(w, r, redirectURI, err)
 		} else {
@@ -98,7 +96,62 @@ func (srv *DefaultServer) handleAuthorize(w http.ResponseWriter, r *http.Request
 }
 
 func (srv *DefaultServer) handleToken(w http.ResponseWriter, r *http.Request) {
-
+	// 判断参数
+	queryValues := r.URL.Query()
+	grantType := queryValues.Get(GrantTypeKey)
+	if grantType == "" {
+		WriterError(w, ErrInvalidRequest)
+		return
+	}
+	if grantType == RefreshTokenKey {
+		refreshToken := queryValues.Get(RefreshTokenKey)
+		model, err := srv.authorizationGrant.RefreshToken(refreshToken)
+		if err != nil {
+			WriterError(w, err)
+		} else {
+			WriterJSON(w, model)
+		}
+	} else if grantType == AuthorizationCodeKey {
+		code := queryValues.Get(CodeKey)
+		redirectURIStr := queryValues.Get(RedirectUriKey)
+		if code == "" || redirectURIStr == "" {
+			WriterError(w, ErrInvalidRequest)
+			return
+		}
+		var model *TokenResponseModel
+		model, err := srv.authorizationGrant.TokenAuthorizationCode(code, redirectURIStr)
+		if err != nil {
+			WriterError(w, ErrInvalidRequest)
+			return
+		} else {
+			WriterJSON(w, model)
+		}
+	} else if grantType == PasswordKey {
+		username := queryValues.Get(UsernameKey)
+		password := queryValues.Get(PasswordKey)
+		if username == "" || password == "" {
+			WriterError(w, ErrInvalidRequest)
+			return
+		}
+		var model *TokenResponseModel
+		model, err := srv.authorizationGrant.TokenResourceOwnerPasswordCredentials(username, password)
+		if err != nil {
+			WriterError(w, ErrInvalidRequest)
+			return
+		} else {
+			WriterJSON(w, model)
+		}
+	} else if grantType == ClientCredentialsKey {
+		basic, _ := RequestClientBasic(r)
+		ctx := NewClientBasicContext(r.Context(), basic)
+		model, err := srv.authorizationGrant.TokenClientCredentials(ctx)
+		if err != nil {
+			WriterError(w, ErrInvalidRequest)
+			return
+		} else {
+			WriterJSON(w, model)
+		}
+	}
 }
 
 func (srv *DefaultServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {

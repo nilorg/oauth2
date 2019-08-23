@@ -30,8 +30,11 @@ func writerJSON(w http.ResponseWriter, statusCode int, value interface{}) (err e
 }
 
 // WriterJSON 写入Json
-func WriterJSON(w http.ResponseWriter, value interface{}) (err error) {
-	err = writerJSON(w, http.StatusOK, value)
+func WriterJSON(w http.ResponseWriter, value interface{}) {
+	err := writerJSON(w, http.StatusOK, value)
+	if err != nil {
+		panic(err)
+	}
 	return
 }
 
