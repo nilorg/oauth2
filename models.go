@@ -1,7 +1,6 @@
 package oauth2
 
 import (
-	"github.com/dgrijalva/jwt-go"
 	"time"
 )
 
@@ -23,8 +22,8 @@ type ClientBasic struct {
 	Secret string `json:"client_secret"`
 }
 
-func (client *ClientBasic) GenerateAccessToken(claims *JwtClaims, tokenExpire time.Duration) (token string, err error) {
-	token, err = NewAccessToken(claims, []byte(client.ID+client.Secret), tokenExpire)
+func (client *ClientBasic) GenerateAccessToken(claims *JwtClaims) (token string, err error) {
+	token, err = NewAccessToken(claims, []byte(client.ID+client.Secret))
 	if err != nil {
 		err = ErrServerError
 	}
@@ -32,8 +31,9 @@ func (client *ClientBasic) GenerateAccessToken(claims *JwtClaims, tokenExpire ti
 }
 
 func (client *ClientBasic) GenerateRefreshToken() (token string, err error) {
-	claims := jwt.StandardClaims{}
+	claims := NewJwtClaims()
 	claims.ExpiresAt = time.Now().Add(AccessTokenExpire).Unix()
+	claims.Subject = ScopeRefreshToken
 	return newJwtToken(claims, []byte(client.ID+client.Secret))
 }
 
@@ -41,6 +41,9 @@ func (client *ClientBasic) ParseAccessToken(accessToken string) (claims *JwtClai
 	claims, err = ParseAccessToken(accessToken, []byte(client.ID+client.Secret))
 	if err != nil {
 		err = ErrServerError
+	}
+	if claims.Valid() != nil {
+		err = ErrAccessDenied
 	}
 	return
 }

@@ -2,7 +2,6 @@ package oauth2
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/nilorg/sdk/random"
 	"net/http"
 	"net/url"
@@ -30,7 +29,6 @@ func RequestClientBasic(r *http.Request) (basic *ClientBasic, err error) {
 	return
 }
 func writerJSON(w http.ResponseWriter, statusCode int, value interface{}) (err error) {
-	fmt.Printf("writerJSON:%+v\n", value)
 	w.WriteHeader(statusCode)
 	w.Header().Set("Content-Type", contentTypeJson)
 	w.Header().Set("Cache-Control", "no-store")

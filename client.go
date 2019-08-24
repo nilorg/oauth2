@@ -83,8 +83,6 @@ func (c *Client) token(grantType string, values url.Values) (model *TokenRespons
 		values.Set(GrantTypeKey, grantType)
 	}
 	var req *http.Request
-	c.Log.Debugf("url: %s", uri.String())
-	c.Log.Debugln(values)
 	req, err = http.NewRequest(http.MethodPost, uri.String(), strings.NewReader(values.Encode()))
 	if err != nil {
 		return
