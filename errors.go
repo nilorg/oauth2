@@ -26,3 +26,23 @@ var (
 	ErrStateValueDidNotMatch   = errors.New("state value did not match")
 	ErrMissingAccessToken      = errors.New("missing access token")
 )
+
+var (
+	Errors = map[string]error{
+		ErrCheckClientBasicFuncNil.Error(): ErrCheckClientBasicFuncNil,
+		ErrInvalidAccessToken.Error():      ErrInvalidAccessToken,
+		ErrStateValueDidNotMatch.Error():   ErrStateValueDidNotMatch,
+		ErrMissingAccessToken.Error():      ErrMissingAccessToken,
+
+		ErrRequestMethod.Error():           ErrRequestMethod,
+		ErrInvalidRequest.Error():          ErrInvalidRequest,
+		ErrUnauthorizedClient.Error():      ErrUnauthorizedClient,
+		ErrAccessDenied.Error():            ErrAccessDenied,
+		ErrUnsupportedResponseType.Error(): ErrUnsupportedResponseType,
+		ErrUnsupportedGrantType.Error():    ErrUnsupportedGrantType,
+		ErrInvalidScope.Error():            ErrInvalidScope,
+		ErrTemporarilyUnavailable.Error():  ErrTemporarilyUnavailable,
+		ErrServerError.Error():             ErrServerError,
+		ErrInvalidClient.Error():           ErrInvalidClient,
+	}
+)

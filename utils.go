@@ -2,13 +2,18 @@ package oauth2
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/nilorg/sdk/random"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 const (
-	contentTypeJson = "application/json;charset=UTF-8"
+	contentTypeJson   = "application/json;charset=UTF-8"
+	AccessTokenExpire = time.Second * 3600
+	TokenTypeBearer   = "Bearer"
+	ScopeRefreshToken = "refresh_token"
 )
 
 // RequestClientBasic 获取请求中的客户端信息
@@ -25,12 +30,12 @@ func RequestClientBasic(r *http.Request) (basic *ClientBasic, err error) {
 	return
 }
 func writerJSON(w http.ResponseWriter, statusCode int, value interface{}) (err error) {
+	fmt.Printf("writerJSON:%+v\n", value)
+	w.WriteHeader(statusCode)
 	w.Header().Set("Content-Type", contentTypeJson)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
-	w.WriteHeader(statusCode)
-	jsonEncoder := json.NewEncoder(w)
-	err = jsonEncoder.Encode(value)
+	err = json.NewEncoder(w).Encode(value)
 	return
 }
 
@@ -50,7 +55,7 @@ func WriterError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusNotFound
 	}
 	if werr := writerJSON(w, statusCode, &ErrorResponseModel{
-		error: err.Error(),
+		Error: err.Error(),
 	}); werr != nil {
 		panic(werr)
 	}
@@ -59,15 +64,15 @@ func WriterError(w http.ResponseWriter, err error) {
 // RedirectSuccess 重定向成功
 func RedirectSuccess(w http.ResponseWriter, r *http.Request, redirectURI *url.URL, code string) {
 	redirectURI.Query().Set(CodeKey, code)
-	redirectURI.Query().Set(StateKey, r.URL.Query().Get(StateKey))
-	http.Redirect(w, r, redirectURI.Path, http.StatusFound)
+	redirectURI.Query().Set(StateKey, r.Form.Get(StateKey))
+	http.Redirect(w, r, redirectURI.String(), http.StatusFound)
 }
 
 // RedirectError 重定向错误
 func RedirectError(w http.ResponseWriter, r *http.Request, redirectURI *url.URL, err error) {
 	redirectURI.Query().Set(ErrorKey, err.Error())
 	redirectURI.Query().Set(StateKey, r.URL.Query().Get(StateKey))
-	http.Redirect(w, r, redirectURI.Path, http.StatusFound)
+	http.Redirect(w, r, redirectURI.String(), http.StatusFound)
 }
 
 func RandomState() string {

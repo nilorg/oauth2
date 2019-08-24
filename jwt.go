@@ -15,16 +15,25 @@ type JwtClaims struct {
 	Username string
 }
 
+func NewJwtClaims() *JwtClaims {
+	return &JwtClaims{}
+}
+
+func newJwtToken(claims jwt.Claims, jwtVerifyKey []byte) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtVerifyKey)
+}
+
 func NewAccessToken(claims *JwtClaims, jwtVerifyKey []byte, tokenExpire time.Duration) (string, error) {
 	claims.ExpiresAt = time.Now().Add(tokenExpire).Unix()
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtVerifyKey)
 }
 
 func ParseAccessToken(accessToken string, jwtVerifyKey []byte) (claims *JwtClaims, err error) {
 	var token *jwt.Token
 	token, err = jwt.ParseWithClaims(accessToken, &JwtClaims{}, func(token *jwt.Token) (i interface{}, e error) {
-		if token.Method != jwt.SigningMethodES256 {
+		if token.Method != jwt.SigningMethodHS256 {
 			return nil, jwt.ErrSignatureInvalid
 		}
 		return jwtVerifyKey, nil

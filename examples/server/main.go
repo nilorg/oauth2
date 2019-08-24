@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/nilorg/oauth2"
-	"github.com/nilorg/oauth2/examples"
 	"net/http"
 )
 
@@ -14,7 +13,7 @@ var (
 )
 
 func main() {
-	srv := oauth2.NewServer(examples.NewAuthorizationGrant())
+	srv := oauth2.NewServer(NewAuthorizationGrant())
 	srv.CheckClientBasic = func(basic *oauth2.ClientBasic) (err error) {
 		pwd, ok := clients[basic.ID]
 		if !ok {
@@ -24,6 +23,7 @@ func main() {
 		}
 		return
 	}
+	srv.Init()
 	if err := http.ListenAndServe(":8003", srv); err != nil {
 		fmt.Printf("%+v\n", err)
 	}

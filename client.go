@@ -10,6 +10,7 @@ import (
 )
 
 type Client struct {
+	Log                   Logger
 	httpClient            *http.Client
 	ServerBaseUrl         string
 	AuthorizationEndpoint string
@@ -20,6 +21,7 @@ type Client struct {
 
 func NewClient(serverBaseUrl, id, secret string) *Client {
 	return &Client{
+		Log:                   &DefaultLogger{},
 		httpClient:            http.DefaultClient,
 		ServerBaseUrl:         serverBaseUrl,
 		AuthorizationEndpoint: "/authorize",
@@ -81,6 +83,8 @@ func (c *Client) token(grantType string, values url.Values) (model *TokenRespons
 		values.Set(GrantTypeKey, grantType)
 	}
 	var req *http.Request
+	c.Log.Debugf("url: %s", uri.String())
+	c.Log.Debugln(values)
 	req, err = http.NewRequest(http.MethodPost, uri.String(), strings.NewReader(values.Encode()))
 	if err != nil {
 		return
@@ -98,12 +102,16 @@ func (c *Client) token(grantType string, values url.Values) (model *TokenRespons
 	if err != nil {
 		return
 	}
-	if strings.Index(string(body), ErrorKey) == -1 {
+	if resp.StatusCode != http.StatusOK || strings.Index(string(body), ErrorKey) > -1 {
+		errModel := ErrorResponseModel{}
+		err = json.Unmarshal(body, &errModel)
+		if err != nil {
+			return
+		}
+		err = Errors[errModel.Error]
+	} else {
 		model = &TokenResponseModel{}
 		err = json.Unmarshal(body, model)
-	} else {
-		errModel := ErrorResponseModel{}
-		err = json.Unmarshal(body, errModel)
 	}
 	return
 }

@@ -4,28 +4,27 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"time"
 )
 
-type DefaultServer struct {
-	AccessTokenExpire  time.Duration
+type Server struct {
 	CheckClientBasic   CheckClientBasicFunc
 	serveMux           *http.ServeMux
 	HandleAuthorize    http.HandlerFunc
 	HandleToken        http.HandlerFunc
 	authorizationGrant AuthorizationGranter
+	Log                Logger
 }
 
-func NewServer(authorizationGrant AuthorizationGranter) *DefaultServer {
+func NewServer(authorizationGrant AuthorizationGranter) *Server {
 	serveMux := http.NewServeMux()
-	return &DefaultServer{
-		AccessTokenExpire:  time.Second * 3600,
+	return &Server{
+		Log:                &DefaultLogger{},
 		authorizationGrant: authorizationGrant,
 		serveMux:           serveMux,
 	}
 }
 
-func (srv *DefaultServer) Init() {
+func (srv *Server) Init() {
 	if srv.CheckClientBasic == nil {
 		panic(ErrCheckClientBasicFuncNil)
 	}
@@ -42,19 +41,27 @@ func (srv *DefaultServer) Init() {
 	if srv.HandleToken == nil {
 		srv.HandleToken = func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
+				fmt.Println("not Post")
 				WriterError(w, ErrRequestMethod)
-			} else if r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
-				WriterError(w, ErrInvalidRequest)
-			} else {
-				srv.handleToken(w, r)
+				return
 			}
+			if r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
+				fmt.Println("x-www-form-urlencoded")
+				WriterError(w, ErrInvalidRequest)
+				return
+			}
+			srv.handleToken(w, r)
 		}
 	}
+	srv.Log.Debugf("GET %s", "/authorize")
 	srv.serveMux.Handle("/authorize", srv.HandleAuthorize)
+	srv.Log.Debugf("POST %s", "/token")
 	srv.serveMux.Handle("/token", CheckClientBasicMiddleware(srv.HandleToken, srv.CheckClientBasic))
 }
 
-func (srv *DefaultServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
+func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
+	basic, _ := RequestClientBasic(r)
+	ctx := NewClientBasicContext(r.Context(), basic)
 	// 判断参数
 	queryValues := r.URL.Query()
 	responseType := queryValues.Get(ResponseTypeKey)
@@ -74,7 +81,7 @@ func (srv *DefaultServer) handleAuthorize(w http.ResponseWriter, r *http.Request
 
 	switch responseType {
 	case CodeKey:
-		code, err := srv.authorizationGrant.AuthorizeAuthorizationCode(clientID, redirectURIStr, scope, state)
+		code, err := srv.authorizationGrant.AuthorizeAuthorizationCode(ctx, clientID, redirectURIStr, scope, state)
 		if err != nil {
 			RedirectError(w, r, redirectURI, ErrInvalidRequest)
 		} else {
@@ -82,7 +89,7 @@ func (srv *DefaultServer) handleAuthorize(w http.ResponseWriter, r *http.Request
 		}
 		break
 	case TokenKey:
-		model, err := srv.authorizationGrant.AuthorizeImplicit(clientID, redirectURIStr, scope, state)
+		model, err := srv.authorizationGrant.AuthorizeImplicit(ctx, clientID, redirectURIStr, scope, state)
 		if err != nil {
 			RedirectError(w, r, redirectURI, err)
 		} else {
@@ -95,31 +102,32 @@ func (srv *DefaultServer) handleAuthorize(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (srv *DefaultServer) handleToken(w http.ResponseWriter, r *http.Request) {
-	// 判断参数
-	queryValues := r.URL.Query()
-	grantType := queryValues.Get(GrantTypeKey)
+func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
+	basic, _ := RequestClientBasic(r)
+	ctx := NewClientBasicContext(r.Context(), basic)
+
+	grantType := r.PostFormValue(GrantTypeKey)
 	if grantType == "" {
 		WriterError(w, ErrInvalidRequest)
 		return
 	}
 	if grantType == RefreshTokenKey {
-		refreshToken := queryValues.Get(RefreshTokenKey)
-		model, err := srv.authorizationGrant.RefreshToken(refreshToken)
+		refreshToken := r.PostFormValue(RefreshTokenKey)
+		model, err := srv.authorizationGrant.RefreshToken(ctx, refreshToken)
 		if err != nil {
 			WriterError(w, err)
 		} else {
 			WriterJSON(w, model)
 		}
 	} else if grantType == AuthorizationCodeKey {
-		code := queryValues.Get(CodeKey)
-		redirectURIStr := queryValues.Get(RedirectUriKey)
+		code := r.PostFormValue(CodeKey)
+		redirectURIStr := r.PostFormValue(RedirectUriKey)
 		if code == "" || redirectURIStr == "" {
 			WriterError(w, ErrInvalidRequest)
 			return
 		}
 		var model *TokenResponseModel
-		model, err := srv.authorizationGrant.TokenAuthorizationCode(code, redirectURIStr)
+		model, err := srv.authorizationGrant.TokenAuthorizationCode(ctx, code, redirectURIStr)
 		if err != nil {
 			WriterError(w, ErrInvalidRequest)
 			return
@@ -127,14 +135,14 @@ func (srv *DefaultServer) handleToken(w http.ResponseWriter, r *http.Request) {
 			WriterJSON(w, model)
 		}
 	} else if grantType == PasswordKey {
-		username := queryValues.Get(UsernameKey)
-		password := queryValues.Get(PasswordKey)
+		username := r.PostFormValue(UsernameKey)
+		password := r.PostFormValue(PasswordKey)
 		if username == "" || password == "" {
 			WriterError(w, ErrInvalidRequest)
 			return
 		}
 		var model *TokenResponseModel
-		model, err := srv.authorizationGrant.TokenResourceOwnerPasswordCredentials(username, password)
+		model, err := srv.authorizationGrant.TokenResourceOwnerPasswordCredentials(ctx, username, password)
 		if err != nil {
 			WriterError(w, ErrInvalidRequest)
 			return
@@ -142,11 +150,9 @@ func (srv *DefaultServer) handleToken(w http.ResponseWriter, r *http.Request) {
 			WriterJSON(w, model)
 		}
 	} else if grantType == ClientCredentialsKey {
-		basic, _ := RequestClientBasic(r)
-		ctx := NewClientBasicContext(r.Context(), basic)
 		model, err := srv.authorizationGrant.TokenClientCredentials(ctx)
 		if err != nil {
-			WriterError(w, ErrInvalidRequest)
+			WriterError(w, err)
 			return
 		} else {
 			WriterJSON(w, model)
@@ -156,6 +162,6 @@ func (srv *DefaultServer) handleToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (srv *DefaultServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+func (srv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	srv.serveMux.ServeHTTP(res, req)
 }
