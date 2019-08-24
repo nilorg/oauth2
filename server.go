@@ -151,6 +151,8 @@ func (srv *DefaultServer) handleToken(w http.ResponseWriter, r *http.Request) {
 		} else {
 			WriterJSON(w, model)
 		}
+	} else {
+		WriterError(w, ErrUnsupportedGrantType)
 	}
 }
 

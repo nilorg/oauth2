@@ -1,6 +1,9 @@
 package examples
 
-import "github.com/nilorg/oauth2"
+import (
+	"context"
+	"github.com/nilorg/oauth2"
+)
 
 type AuthorizationGrant struct {
 }
@@ -21,7 +24,7 @@ func (ag *AuthorizationGrant) TokenResourceOwnerPasswordCredentials(username, pa
 
 	return
 }
-func (ag *AuthorizationGrant) TokenClientCredentials(scope string) (model *oauth2.TokenResponseModel, err error) {
+func (ag *AuthorizationGrant) TokenClientCredentials(ctx context.Context) (model *oauth2.TokenResponseModel, err error) {
 
 	return
 }
@@ -30,6 +33,6 @@ func (ag *AuthorizationGrant) RefreshToken(refreshToken string) (model *oauth2.T
 	return
 }
 
-func NewDefaultService() *AuthorizationGrant {
+func NewAuthorizationGrant() *AuthorizationGrant {
 	return &AuthorizationGrant{}
 }

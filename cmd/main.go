@@ -14,7 +14,7 @@ var (
 )
 
 func main() {
-	srv := oauth2.NewServer(examples.NewDefaultService())
+	srv := oauth2.NewServer(examples.NewAuthorizationGrant())
 	srv.CheckClientBasic = func(basic *oauth2.ClientBasic) (err error) {
 		pwd, ok := clients[basic.ID]
 		if !ok {

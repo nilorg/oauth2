@@ -2,8 +2,13 @@ package oauth2
 
 import (
 	"encoding/json"
+	"github.com/nilorg/sdk/random"
 	"net/http"
 	"net/url"
+)
+
+const (
+	contentTypeJson = "application/json;charset=UTF-8"
 )
 
 // RequestClientBasic 获取请求中的客户端信息
@@ -20,7 +25,7 @@ func RequestClientBasic(r *http.Request) (basic *ClientBasic, err error) {
 	return
 }
 func writerJSON(w http.ResponseWriter, statusCode int, value interface{}) (err error) {
-	w.Header().Set("Content-Type", "application/json;charset=UTF-8")
+	w.Header().Set("Content-Type", contentTypeJson)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
 	w.WriteHeader(statusCode)
@@ -44,8 +49,8 @@ func WriterError(w http.ResponseWriter, err error) {
 	if err == ErrRequestMethod {
 		statusCode = http.StatusNotFound
 	}
-	if werr := writerJSON(w, statusCode, map[string]string{
-		"error": err.Error(),
+	if werr := writerJSON(w, statusCode, &ErrorResponseModel{
+		error: err.Error(),
 	}); werr != nil {
 		panic(werr)
 	}
@@ -63,4 +68,12 @@ func RedirectError(w http.ResponseWriter, r *http.Request, redirectURI *url.URL,
 	redirectURI.Query().Set(ErrorKey, err.Error())
 	redirectURI.Query().Set(StateKey, r.URL.Query().Get(StateKey))
 	http.Redirect(w, r, redirectURI.Path, http.StatusFound)
+}
+
+func RandomState() string {
+	return random.AZaz09(6)
+}
+
+func RandomCode() string {
+	return random.AZaz09(12)
 }
