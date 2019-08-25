@@ -1,7 +1,7 @@
 package oauth2
 
 // VerifyClientFunc 验证客户端委托
-type VerifyClientFunc func(basic *ClientBasic) (err error)
+type VerifyClientFunc func(clientID string) (basic *ClientBasic, err error)
 
 // VerifyAuthorizationFunc 验证授权委托
 type VerifyAuthorizationFunc func(clientID, redirectUri string, scope []string) (err error)
@@ -10,7 +10,7 @@ type VerifyAuthorizationFunc func(clientID, redirectUri string, scope []string) 
 type GenerateCodeFunc func(clientID, redirectUri string, scope []string) (code string, err error)
 
 // VerifyCodeFunc 验证Code委托
-type VerifyCodeFunc func(code, clientID, redirectUri string) (value *CodeValue,err error)
+type VerifyCodeFunc func(code, clientID, redirectUri string) (value *CodeValue, err error)
 
 // VerifyPasswordFunc 验证账号密码委托
 type VerifyPasswordFunc func(username, password string, scope []string) (err error)

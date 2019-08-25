@@ -5,16 +5,21 @@ import "net/http"
 // CheckClientBasicMiddleware 检查客户端基本信息
 func CheckClientBasicMiddleware(next http.Handler, check VerifyClientFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var clientBasic *ClientBasic
+		var reqClientBasic *ClientBasic
 		var err error
-		clientBasic, err = RequestClientBasic(r)
+		reqClientBasic, err = RequestClientBasic(r)
 		if err != nil {
 			WriterError(w, err)
 			return
 		}
-		err = check(clientBasic)
+		var clientBasic *ClientBasic
+		clientBasic, err = check(reqClientBasic.ID)
 		if err != nil {
 			WriterError(w, err)
+			return
+		}
+		if reqClientBasic.ID != clientBasic.ID || reqClientBasic.Secret != clientBasic.Secret {
+			WriterError(w, ErrUnauthorizedClient)
 			return
 		}
 		next.ServeHTTP(w, r)

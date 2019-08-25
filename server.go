@@ -63,12 +63,10 @@ func (srv *Server) Init() {
 	if srv.HandleToken == nil {
 		srv.HandleToken = func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
-				fmt.Println("not Post")
 				WriterError(w, ErrRequestMethod)
 				return
 			}
 			if r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
-				fmt.Println("x-www-form-urlencoded")
 				WriterError(w, ErrInvalidRequest)
 				return
 			}
@@ -82,7 +80,6 @@ func (srv *Server) Init() {
 }
 
 func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
-	clientBasic, _ := RequestClientBasic(r)
 	// 判断参数
 	queryValues := r.URL.Query()
 	responseType := queryValues.Get(ResponseTypeKey)
@@ -99,18 +96,17 @@ func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		RedirectError(w, r, redirectURI, ErrInvalidRequest)
 		return
 	}
-
 	switch responseType {
 	case CodeKey:
-		code, err := srv.authorizeAuthorizationCode(clientBasic, clientID, redirectURIStr, scope, state)
+		code, err := srv.authorizeAuthorizationCode(clientID, redirectURIStr, scope)
 		if err != nil {
-			RedirectError(w, r, redirectURI, ErrInvalidRequest)
+			RedirectError(w, r, redirectURI, err)
 		} else {
 			RedirectSuccess(w, r, redirectURI, code)
 		}
 		break
 	case TokenKey:
-		model, err := srv.authorizeImplicit(clientBasic, clientID, redirectURIStr, scope)
+		model, err := srv.authorizeImplicit(clientID, redirectURIStr, scope)
 		if err != nil {
 			RedirectError(w, r, redirectURI, err)
 		} else {
@@ -125,7 +121,6 @@ func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 	clientBasic, _ := RequestClientBasic(r)
-
 	grantType := r.PostFormValue(GrantTypeKey)
 	if grantType == "" {
 		WriterError(w, ErrInvalidRequest)
@@ -149,7 +144,7 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 		var model *TokenResponse
 		model, err := srv.tokenAuthorizationCode(clientBasic, code, redirectURIStr)
 		if err != nil {
-			WriterError(w, ErrInvalidRequest)
+			WriterError(w, err)
 			return
 		} else {
 			WriterJSON(w, model)
@@ -165,7 +160,7 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 		var model *TokenResponse
 		model, err := srv.tokenResourceOwnerPasswordCredentials(clientBasic, username, password, scope)
 		if err != nil {
-			WriterError(w, ErrInvalidRequest)
+			WriterError(w, err)
 			return
 		} else {
 			WriterJSON(w, model)
@@ -189,7 +184,7 @@ func (srv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 }
 
 // 授权码（authorization-code）
-func (srv *Server) authorizeAuthorizationCode(client *ClientBasic, clientID, redirectUri, scope, state string) (code string, err error) {
+func (srv *Server) authorizeAuthorizationCode(clientID, redirectUri, scope string) (code string, err error) {
 	return srv.GenerateCode(clientID, redirectUri, strings.Split(scope, " "))
 }
 
@@ -200,6 +195,7 @@ func (srv *Server) tokenAuthorizationCode(client *ClientBasic, code, redirectUri
 		return
 	}
 	tokenClaims := NewJwtClaims()
+	tokenClaims.Audience = redirectUri
 	var tokenStr string
 	tokenStr, err = client.GenerateAccessToken(tokenClaims)
 	if err != nil {
@@ -218,12 +214,18 @@ func (srv *Server) tokenAuthorizationCode(client *ClientBasic, code, redirectUri
 }
 
 // 隐藏式（implicit）
-func (srv *Server) authorizeImplicit(client *ClientBasic, clientID, redirectUri, scope string) (token *TokenResponse, err error) {
+func (srv *Server) authorizeImplicit(clientID, redirectUri, scope string) (token *TokenResponse, err error) {
+	var client *ClientBasic
+	client, err = srv.VerifyClient(clientID)
+	if err != nil {
+		return
+	}
 	err = srv.VerifyAuthorization(clientID, redirectUri, strings.Split(scope, " "))
 	if err != nil {
 		return
 	}
 	tokenClaims := NewJwtClaims()
+	tokenClaims.Audience = redirectUri
 	var tokenStr string
 	tokenStr, err = client.GenerateAccessToken(tokenClaims)
 	if err != nil {

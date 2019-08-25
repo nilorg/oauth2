@@ -33,7 +33,9 @@ func (client *ClientBasic) GenerateAccessToken(claims *JwtClaims) (token string,
 		claims.Issuer = DefaultJwtIssuer
 	}
 	claims.Subject = client.ID
-	claims.Audience = "" // 接收jwt的一方,redirect_uri
+	if claims.ExpiresAt == 0 {
+		claims.ExpiresAt = time.Now().Add(AccessTokenExpire).Unix()
+	}
 	token, err = NewAccessToken(claims, []byte(client.ID+client.Secret))
 	if err != nil {
 		err = ErrServerError

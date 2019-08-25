@@ -20,9 +20,13 @@ type Client struct {
 }
 
 func NewClient(serverBaseUrl, id, secret string) *Client {
+	httpclient := &http.Client{}
+	httpclient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
 	return &Client{
 		Log:                   &DefaultLogger{},
-		httpClient:            http.DefaultClient,
+		httpClient:            httpclient,
 		ServerBaseUrl:         serverBaseUrl,
 		AuthorizationEndpoint: "/authorize",
 		TokenEndpoint:         "/token",
@@ -37,16 +41,20 @@ func (c *Client) authorize(w http.ResponseWriter, responseType, redirectUri, sco
 	if err != nil {
 		return
 	}
-	uri.Query().Set(ResponseTypeKey, responseType)
-	uri.Query().Set(ClientIdKey, c.Id)
-	uri.Query().Set(RedirectUriKey, redirectUri)
-	uri.Query().Set(ScopeKey, scope)
-	uri.Query().Set(StateKey, state)
+	query := uri.Query()
+	query.Set(ResponseTypeKey, responseType)
+	query.Set(ClientIdKey, c.Id)
+	query.Set(RedirectUriKey, redirectUri)
+	query.Set(ScopeKey, scope)
+	query.Set(StateKey, state)
+	uri.RawQuery = query.Encode()
 	var resp *http.Response
 	resp, err = c.httpClient.Get(uri.String())
 	if err != nil {
 		return
 	}
+	w.Header().Set("Location", resp.Header.Get("Location"))
+	w.WriteHeader(resp.StatusCode)
 	defer resp.Body.Close()
 	_, err = io.Copy(w, resp.Body)
 	return
@@ -56,20 +64,20 @@ func (c *Client) AuthorizeAuthorizationCode(w http.ResponseWriter, redirectUri, 
 	return c.authorize(w, CodeKey, redirectUri, scope, state)
 }
 
-func (c *Client) TokenAuthorizationCode(code, redirectUri, state string) (model *TokenResponse, err error) {
+func (c *Client) TokenAuthorizationCode(code, redirectUri, state string) (token *TokenResponse, err error) {
 	values := url.Values{
-		CodeKey:        []string{CodeKey},
+		CodeKey:        []string{code},
 		RedirectUriKey: []string{redirectUri},
 		StateKey:       []string{state},
 	}
-	return c.token(CodeKey, values)
+	return c.token(AuthorizationCodeKey, values)
 }
 
 func (c *Client) AuthorizeImplicit(w http.ResponseWriter, redirectUri, scope, state string) (err error) {
 	return c.authorize(w, TokenKey, redirectUri, scope, state)
 }
 
-func (c *Client) token(grantType string, values url.Values) (model *TokenResponse, err error) {
+func (c *Client) token(grantType string, values url.Values) (token *TokenResponse, err error) {
 	var uri *url.URL
 	uri, err = url.Parse(c.ServerBaseUrl + c.TokenEndpoint)
 	if err != nil {
@@ -108,8 +116,8 @@ func (c *Client) token(grantType string, values url.Values) (model *TokenRespons
 		}
 		err = Errors[errModel.Error]
 	} else {
-		model = &TokenResponse{}
-		err = json.Unmarshal(body, model)
+		token = &TokenResponse{}
+		err = json.Unmarshal(body, token)
 	}
 	return
 }

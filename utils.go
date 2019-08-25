@@ -63,15 +63,19 @@ func WriterError(w http.ResponseWriter, err error) {
 
 // RedirectSuccess 重定向成功
 func RedirectSuccess(w http.ResponseWriter, r *http.Request, redirectURI *url.URL, code string) {
-	redirectURI.Query().Set(CodeKey, code)
-	redirectURI.Query().Set(StateKey, r.Form.Get(StateKey))
+	query := redirectURI.Query()
+	query.Set(CodeKey, code)
+	query.Set(StateKey, r.FormValue(StateKey))
+	redirectURI.RawQuery = query.Encode()
 	http.Redirect(w, r, redirectURI.String(), http.StatusFound)
 }
 
 // RedirectError 重定向错误
 func RedirectError(w http.ResponseWriter, r *http.Request, redirectURI *url.URL, err error) {
-	redirectURI.Query().Set(ErrorKey, err.Error())
-	redirectURI.Query().Set(StateKey, r.URL.Query().Get(StateKey))
+	query := redirectURI.Query()
+	query.Set(ErrorKey, err.Error())
+	query.Set(StateKey, r.FormValue(StateKey))
+	redirectURI.RawQuery = query.Encode()
 	http.Redirect(w, r, redirectURI.String(), http.StatusFound)
 }
 
