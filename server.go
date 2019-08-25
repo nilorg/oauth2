@@ -137,12 +137,13 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 	} else if grantType == PasswordKey {
 		username := r.PostFormValue(UsernameKey)
 		password := r.PostFormValue(PasswordKey)
+		scope := r.PostFormValue(ScopeKey)
 		if username == "" || password == "" {
 			WriterError(w, ErrInvalidRequest)
 			return
 		}
 		var model *TokenResponseModel
-		model, err := srv.authorizationGrant.TokenResourceOwnerPasswordCredentials(ctx, username, password)
+		model, err := srv.authorizationGrant.TokenResourceOwnerPasswordCredentials(ctx, username, password, scope)
 		if err != nil {
 			WriterError(w, ErrInvalidRequest)
 			return
@@ -150,7 +151,8 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 			WriterJSON(w, model)
 		}
 	} else if grantType == ClientCredentialsKey {
-		model, err := srv.authorizationGrant.TokenClientCredentials(ctx)
+		scope := r.PostFormValue(ScopeKey)
+		model, err := srv.authorizationGrant.TokenClientCredentials(ctx, scope)
 		if err != nil {
 			WriterError(w, err)
 			return

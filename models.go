@@ -23,6 +23,10 @@ type ClientBasic struct {
 }
 
 func (client *ClientBasic) GenerateAccessToken(claims *JwtClaims) (token string, err error) {
+	claims.Issuer = "github.com/nilorg/oauth2"
+	claims.Subject = client.ID
+	claims.Audience = "" // 接收jwt的一方,redirect_uri
+	claims.Id = ""
 	token, err = NewAccessToken(claims, []byte(client.ID+client.Secret))
 	if err != nil {
 		err = ErrServerError

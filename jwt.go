@@ -6,9 +6,7 @@ import (
 
 type JwtClaims struct {
 	jwt.StandardClaims
-	OpenID   string
-	ClientID string
-	Username string
+	Scope string `json:"scope,omitempty"`
 }
 
 func NewJwtClaims() *JwtClaims {

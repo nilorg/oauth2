@@ -10,9 +10,9 @@ type AuthorizationGranter interface {
 	// 隐藏式（implicit）
 	AuthorizeImplicit(ctx context.Context, clientID, redirectUri, scope, state string) (*TokenResponseModel, error)
 	// 密码式（password）
-	TokenResourceOwnerPasswordCredentials(ctx context.Context, username, password string) (*TokenResponseModel, error)
+	TokenResourceOwnerPasswordCredentials(ctx context.Context, username, password, scope string) (*TokenResponseModel, error)
 	// 客户端凭证（client credentials）
-	TokenClientCredentials(ctx context.Context) (*TokenResponseModel, error)
+	TokenClientCredentials(ctx context.Context, scope string) (*TokenResponseModel, error)
 	// 刷新Token
 	RefreshToken(ctx context.Context, refreshToken string) (*TokenResponseModel, error)
 }

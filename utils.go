@@ -49,8 +49,8 @@ func WriterJSON(w http.ResponseWriter, value interface{}) {
 // WriterError 写入Error
 func WriterError(w http.ResponseWriter, err error) {
 	statusCode := http.StatusBadRequest
-	if err == ErrRequestMethod {
-		statusCode = http.StatusNotFound
+	if code, ok := ErrStatusCodes[err]; ok {
+		statusCode = code
 	}
 	if werr := writerJSON(w, statusCode, &ErrorResponseModel{
 		Error: err.Error(),
