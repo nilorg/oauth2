@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/nilorg/oauth2"
 	"net/http"
 )
@@ -58,7 +59,25 @@ func main() {
 		return
 	}
 	srv.Init()
-	if err := http.ListenAndServe(":8003", srv); err != nil {
+
+	// =============Http Default=============
+	//if err := http.ListenAndServe(":8003", srv); err != nil {
+	//	fmt.Printf("%+v\n", err)
+	//}
+
+	// =============Gin=============
+	r := gin.Default()
+	oauth2Group := r.Group("/oauth2")
+	{
+		oauth2Group.GET("/authorize", func(c *gin.Context) {
+			srv.HandleAuthorize(c.Writer, c.Request)
+		})
+		oauth2Group.POST("/token", func(c *gin.Context) {
+			srv.HandleToken(c.Writer, c.Request)
+		})
+	}
+
+	if err := http.ListenAndServe(":8003", r); err != nil {
 		fmt.Printf("%+v\n", err)
 	}
 }

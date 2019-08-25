@@ -10,10 +10,12 @@ var (
 	client *oauth2.Client
 )
 
-func main() {
+func init()  {
 	logger.Init()
 	client = oauth2.NewClient("http://localhost:8003", "oauth2_client", "password")
 	client.Log = logger.Default()
+}
+func main() {
 	r := gin.Default()
 	r.GET("/ping", func(c *gin.Context) {
 		//err := client.AuthorizeImplicit(c.Writer, "http://localhost:8080/callback", "test", "aaaaa")
