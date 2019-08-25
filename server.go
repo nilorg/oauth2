@@ -76,7 +76,7 @@ func (srv *Server) Init() {
 	srv.Log.Debugf("GET %s", "/authorize")
 	srv.serveMux.Handle("/authorize", srv.HandleAuthorize)
 	srv.Log.Debugf("POST %s", "/token")
-	srv.serveMux.Handle("/token", CheckClientBasicMiddleware(srv.HandleToken, srv.VerifyClient))
+	srv.serveMux.Handle("/token", srv.HandleToken)
 }
 
 func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +120,25 @@ func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
-	clientBasic, _ := RequestClientBasic(r)
+
+	var reqClientBasic *ClientBasic
+	var err error
+	reqClientBasic, err = RequestClientBasic(r)
+	if err != nil {
+		WriterError(w, err)
+		return
+	}
+	var clientBasic *ClientBasic
+	clientBasic, err = srv.VerifyClient(reqClientBasic.ID)
+	if err != nil {
+		WriterError(w, err)
+		return
+	}
+	if reqClientBasic.ID != clientBasic.ID || reqClientBasic.Secret != clientBasic.Secret {
+		WriterError(w, ErrUnauthorizedClient)
+		return
+	}
+
 	grantType := r.PostFormValue(GrantTypeKey)
 	if grantType == "" {
 		WriterError(w, ErrInvalidRequest)
