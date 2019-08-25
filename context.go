@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 )
+
 var (
 	// ErrContextNotFoundClientBasic 上下文不存在客户端信息
 	ErrContextNotFoundClientBasic = errors.New("上下文不存在客户端信息")
 )
+
 type clientBasicKey struct{}
 
 // ClientBasicFromContext 从上下文中获取微信客户端

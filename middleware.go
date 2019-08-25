@@ -3,7 +3,7 @@ package oauth2
 import "net/http"
 
 // CheckClientBasicMiddleware 检查客户端基本信息
-func CheckClientBasicMiddleware(next http.Handler, check CheckClientBasicFunc) http.Handler {
+func CheckClientBasicMiddleware(next http.Handler, check VerifyClientFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var clientBasic *ClientBasic
 		var err error

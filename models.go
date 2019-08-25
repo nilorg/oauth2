@@ -4,17 +4,23 @@ import (
 	"time"
 )
 
-type TokenResponseModel struct {
+type TokenResponse struct {
 	AccessToken      string      `json:"access_token"`
-	TokenType        string      `json:"token_type"`
+	TokenType        string      `json:"token_type,omitempty"`
 	ExpiresIn        int64       `json:"expires_in"`
-	RefreshToken     string      `json:"refresh_token"`
-	ExampleParameter interface{} `json:"example_parameter"`
-	Scope            string      `json:"scope"`
+	RefreshToken     string      `json:"refresh_token,omitempty"`
+	ExampleParameter interface{} `json:"example_parameter,omitempty"`
+	Scope            string      `json:"scope,omitempty"`
 }
 
-type ErrorResponseModel struct {
+type ErrorResponse struct {
 	Error string `json:"error"`
+}
+
+type CodeValue struct {
+	ClientID    string   `json:"client_id"`
+	RedirectUri string   `json:"redirect_uri"`
+	Scope       []string `json:"scope"`
 }
 
 type ClientBasic struct {
@@ -23,10 +29,11 @@ type ClientBasic struct {
 }
 
 func (client *ClientBasic) GenerateAccessToken(claims *JwtClaims) (token string, err error) {
-	claims.Issuer = "github.com/nilorg/oauth2"
+	if claims.Issuer == "" {
+		claims.Issuer = DefaultJwtIssuer
+	}
 	claims.Subject = client.ID
 	claims.Audience = "" // 接收jwt的一方,redirect_uri
-	claims.Id = ""
 	token, err = NewAccessToken(claims, []byte(client.ID+client.Secret))
 	if err != nil {
 		err = ErrServerError
@@ -34,10 +41,16 @@ func (client *ClientBasic) GenerateAccessToken(claims *JwtClaims) (token string,
 	return
 }
 
-func (client *ClientBasic) GenerateRefreshToken() (token string, err error) {
+func (client *ClientBasic) GenerateRefreshToken(issuer, accessToken string) (token string, err error) {
 	claims := NewJwtClaims()
-	claims.ExpiresAt = time.Now().Add(AccessTokenExpire).Unix()
+	if claims.Issuer == "" {
+		claims.Issuer = DefaultJwtIssuer
+	}
+	claims.IssuedAt = time.Now().Unix()
+	claims.Subject = client.ID
+	claims.ExpiresAt = time.Now().Add(RefreshTokenExpire).Unix()
 	claims.Subject = ScopeRefreshToken
+	claims.Id = accessToken
 	return newJwtToken(claims, []byte(client.ID+client.Secret))
 }
 

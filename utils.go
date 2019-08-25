@@ -9,10 +9,12 @@ import (
 )
 
 const (
-	contentTypeJson   = "application/json;charset=UTF-8"
-	AccessTokenExpire = time.Second * 3600
-	TokenTypeBearer   = "Bearer"
-	ScopeRefreshToken = "refresh_token"
+	contentTypeJson    = "application/json;charset=UTF-8"
+	AccessTokenExpire  = time.Second * 3600
+	RefreshTokenExpire = AccessTokenExpire / 2
+	TokenTypeBearer    = "Bearer"
+	ScopeRefreshToken  = "refresh_token"
+	DefaultJwtIssuer   = "github.com/nilorg/oauth2"
 )
 
 // RequestClientBasic 获取请求中的客户端信息
@@ -52,7 +54,7 @@ func WriterError(w http.ResponseWriter, err error) {
 	if code, ok := ErrStatusCodes[err]; ok {
 		statusCode = code
 	}
-	if werr := writerJSON(w, statusCode, &ErrorResponseModel{
+	if werr := writerJSON(w, statusCode, &ErrorResponse{
 		Error: err.Error(),
 	}); werr != nil {
 		panic(werr)

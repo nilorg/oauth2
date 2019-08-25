@@ -56,7 +56,7 @@ func (c *Client) AuthorizeAuthorizationCode(w http.ResponseWriter, redirectUri, 
 	return c.authorize(w, CodeKey, redirectUri, scope, state)
 }
 
-func (c *Client) TokenAuthorizationCode(code, redirectUri, state string) (model *TokenResponseModel, err error) {
+func (c *Client) TokenAuthorizationCode(code, redirectUri, state string) (model *TokenResponse, err error) {
 	values := url.Values{
 		CodeKey:        []string{CodeKey},
 		RedirectUriKey: []string{redirectUri},
@@ -69,7 +69,7 @@ func (c *Client) AuthorizeImplicit(w http.ResponseWriter, redirectUri, scope, st
 	return c.authorize(w, TokenKey, redirectUri, scope, state)
 }
 
-func (c *Client) token(grantType string, values url.Values) (model *TokenResponseModel, err error) {
+func (c *Client) token(grantType string, values url.Values) (model *TokenResponse, err error) {
 	var uri *url.URL
 	uri, err = url.Parse(c.ServerBaseUrl + c.TokenEndpoint)
 	if err != nil {
@@ -101,20 +101,20 @@ func (c *Client) token(grantType string, values url.Values) (model *TokenRespons
 		return
 	}
 	if resp.StatusCode != http.StatusOK || strings.Index(string(body), ErrorKey) > -1 {
-		errModel := ErrorResponseModel{}
+		errModel := ErrorResponse{}
 		err = json.Unmarshal(body, &errModel)
 		if err != nil {
 			return
 		}
 		err = Errors[errModel.Error]
 	} else {
-		model = &TokenResponseModel{}
+		model = &TokenResponse{}
 		err = json.Unmarshal(body, model)
 	}
 	return
 }
 
-func (c *Client) TokenResourceOwnerPasswordCredentials(username, password string) (model *TokenResponseModel, err error) {
+func (c *Client) TokenResourceOwnerPasswordCredentials(username, password string) (model *TokenResponse, err error) {
 	values := url.Values{
 		UsernameKey: []string{username},
 		PasswordKey: []string{password},
@@ -122,11 +122,11 @@ func (c *Client) TokenResourceOwnerPasswordCredentials(username, password string
 	return c.token(PasswordKey, values)
 }
 
-func (c *Client) TokenClientCredentials() (model *TokenResponseModel, err error) {
+func (c *Client) TokenClientCredentials() (model *TokenResponse, err error) {
 	return c.token(ClientCredentialsKey, nil)
 }
 
-func (c *Client) RefreshToken(refreshToken string) (model *TokenResponseModel, err error) {
+func (c *Client) RefreshToken(refreshToken string) (model *TokenResponse, err error) {
 	values := url.Values{
 		RefreshTokenKey: []string{refreshToken},
 	}

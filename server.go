@@ -4,31 +4,52 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
+	"time"
 )
 
 type Server struct {
-	CheckClientBasic   CheckClientBasicFunc
-	serveMux           *http.ServeMux
-	HandleAuthorize    http.HandlerFunc
-	HandleToken        http.HandlerFunc
-	authorizationGrant AuthorizationGranter
-	Log                Logger
+	VerifyClient           VerifyClientFunc
+	VerifyCredentialsScope VerifyCredentialsScopeFunc
+	VerifyPassword         VerifyPasswordFunc
+	VerifyAuthorization    VerifyAuthorizationFunc
+	GenerateCode           GenerateCodeFunc
+	VerifyCode             VerifyCodeFunc
+	serveMux               *http.ServeMux
+	HandleAuthorize        http.HandlerFunc
+	HandleToken            http.HandlerFunc
+	Log                    Logger
+	JwtIssuer              string
 }
 
-func NewServer(authorizationGrant AuthorizationGranter) *Server {
+func NewServer() *Server {
 	serveMux := http.NewServeMux()
 	return &Server{
-		Log:                &DefaultLogger{},
-		authorizationGrant: authorizationGrant,
-		serveMux:           serveMux,
+		Log:       &DefaultLogger{},
+		serveMux:  serveMux,
+		JwtIssuer: "github.com/nilorg/oauth2",
 	}
 }
 
 func (srv *Server) Init() {
-	if srv.CheckClientBasic == nil {
-		panic(ErrCheckClientBasicFuncNil)
+	if srv.VerifyClient == nil {
+		panic(ErrVerifyClientFuncNil)
 	}
-
+	if srv.VerifyCredentialsScope == nil {
+		panic(ErrVerifyCredentialsScopeFuncNil)
+	}
+	if srv.VerifyPassword == nil {
+		panic(ErrVerifyPasswordFuncNil)
+	}
+	if srv.VerifyAuthorization == nil {
+		panic(ErrVerifyAuthorizationFuncNil)
+	}
+	if srv.GenerateCode == nil {
+		panic(ErrGenerateCodeFuncNil)
+	}
+	if srv.VerifyCode == nil {
+		panic(ErrVerifyCodeFuncNil)
+	}
 	if srv.HandleAuthorize == nil {
 		srv.HandleAuthorize = func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodGet {
@@ -38,6 +59,7 @@ func (srv *Server) Init() {
 			}
 		}
 	}
+
 	if srv.HandleToken == nil {
 		srv.HandleToken = func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
@@ -56,12 +78,11 @@ func (srv *Server) Init() {
 	srv.Log.Debugf("GET %s", "/authorize")
 	srv.serveMux.Handle("/authorize", srv.HandleAuthorize)
 	srv.Log.Debugf("POST %s", "/token")
-	srv.serveMux.Handle("/token", CheckClientBasicMiddleware(srv.HandleToken, srv.CheckClientBasic))
+	srv.serveMux.Handle("/token", CheckClientBasicMiddleware(srv.HandleToken, srv.VerifyClient))
 }
 
 func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
-	basic, _ := RequestClientBasic(r)
-	ctx := NewClientBasicContext(r.Context(), basic)
+	clientBasic, _ := RequestClientBasic(r)
 	// 判断参数
 	queryValues := r.URL.Query()
 	responseType := queryValues.Get(ResponseTypeKey)
@@ -81,7 +102,7 @@ func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	switch responseType {
 	case CodeKey:
-		code, err := srv.authorizationGrant.AuthorizeAuthorizationCode(ctx, clientID, redirectURIStr, scope, state)
+		code, err := srv.authorizeAuthorizationCode(clientBasic, clientID, redirectURIStr, scope, state)
 		if err != nil {
 			RedirectError(w, r, redirectURI, ErrInvalidRequest)
 		} else {
@@ -89,7 +110,7 @@ func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		}
 		break
 	case TokenKey:
-		model, err := srv.authorizationGrant.AuthorizeImplicit(ctx, clientID, redirectURIStr, scope, state)
+		model, err := srv.authorizeImplicit(clientBasic, clientID, redirectURIStr, scope)
 		if err != nil {
 			RedirectError(w, r, redirectURI, err)
 		} else {
@@ -103,8 +124,7 @@ func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
-	basic, _ := RequestClientBasic(r)
-	ctx := NewClientBasicContext(r.Context(), basic)
+	clientBasic, _ := RequestClientBasic(r)
 
 	grantType := r.PostFormValue(GrantTypeKey)
 	if grantType == "" {
@@ -113,7 +133,7 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 	}
 	if grantType == RefreshTokenKey {
 		refreshToken := r.PostFormValue(RefreshTokenKey)
-		model, err := srv.authorizationGrant.RefreshToken(ctx, refreshToken)
+		model, err := srv.refreshToken(clientBasic, refreshToken)
 		if err != nil {
 			WriterError(w, err)
 		} else {
@@ -126,8 +146,8 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 			WriterError(w, ErrInvalidRequest)
 			return
 		}
-		var model *TokenResponseModel
-		model, err := srv.authorizationGrant.TokenAuthorizationCode(ctx, code, redirectURIStr)
+		var model *TokenResponse
+		model, err := srv.tokenAuthorizationCode(clientBasic, code, redirectURIStr)
 		if err != nil {
 			WriterError(w, ErrInvalidRequest)
 			return
@@ -142,8 +162,8 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 			WriterError(w, ErrInvalidRequest)
 			return
 		}
-		var model *TokenResponseModel
-		model, err := srv.authorizationGrant.TokenResourceOwnerPasswordCredentials(ctx, username, password, scope)
+		var model *TokenResponse
+		model, err := srv.tokenResourceOwnerPasswordCredentials(clientBasic, username, password, scope)
 		if err != nil {
 			WriterError(w, ErrInvalidRequest)
 			return
@@ -152,7 +172,7 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 		}
 	} else if grantType == ClientCredentialsKey {
 		scope := r.PostFormValue(ScopeKey)
-		model, err := srv.authorizationGrant.TokenClientCredentials(ctx, scope)
+		model, err := srv.tokenClientCredentials(clientBasic, scope)
 		if err != nil {
 			WriterError(w, err)
 			return
@@ -166,4 +186,156 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 
 func (srv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	srv.serveMux.ServeHTTP(res, req)
+}
+
+// 授权码（authorization-code）
+func (srv *Server) authorizeAuthorizationCode(client *ClientBasic, clientID, redirectUri, scope, state string) (code string, err error) {
+	return srv.GenerateCode(clientID, redirectUri, strings.Split(scope, " "))
+}
+
+func (srv *Server) tokenAuthorizationCode(client *ClientBasic, code, redirectUri string) (token *TokenResponse, err error) {
+	var value *CodeValue
+	value, err = srv.VerifyCode(code, client.ID, redirectUri)
+	if err != nil {
+		return
+	}
+	tokenClaims := NewJwtClaims()
+	var tokenStr string
+	tokenStr, err = client.GenerateAccessToken(tokenClaims)
+	if err != nil {
+		return
+	}
+	var refreshTokenStr string
+	refreshTokenStr, err = client.GenerateRefreshToken(srv.JwtIssuer, tokenStr)
+	token = &TokenResponse{
+		AccessToken:  tokenStr,
+		TokenType:    TokenTypeBearer,
+		ExpiresIn:    tokenClaims.ExpiresAt,
+		RefreshToken: refreshTokenStr,
+		Scope:        strings.Join(value.Scope, " "),
+	}
+	return
+}
+
+// 隐藏式（implicit）
+func (srv *Server) authorizeImplicit(client *ClientBasic, clientID, redirectUri, scope string) (token *TokenResponse, err error) {
+	err = srv.VerifyAuthorization(clientID, redirectUri, strings.Split(scope, " "))
+	if err != nil {
+		return
+	}
+	tokenClaims := NewJwtClaims()
+	var tokenStr string
+	tokenStr, err = client.GenerateAccessToken(tokenClaims)
+	if err != nil {
+		return
+	}
+	var refreshToken string
+	refreshToken, err = client.GenerateRefreshToken(srv.JwtIssuer, tokenStr)
+	token = &TokenResponse{
+		AccessToken:  tokenStr,
+		TokenType:    TokenTypeBearer,
+		ExpiresIn:    tokenClaims.ExpiresAt,
+		RefreshToken: refreshToken,
+		Scope:        scope,
+	}
+	return
+}
+
+// 密码式（password）
+func (srv *Server) tokenResourceOwnerPasswordCredentials(client *ClientBasic, username, password, scope string) (token *TokenResponse, err error) {
+	err = srv.VerifyPassword(username, password, strings.Split(scope, " "))
+	if err != nil {
+		return
+	}
+	tokenClaims := NewJwtClaims()
+	var tokenStr string
+	tokenStr, err = client.GenerateAccessToken(tokenClaims)
+	if err != nil {
+		return
+	}
+	var refreshToken string
+	refreshToken, err = client.GenerateRefreshToken(srv.JwtIssuer, tokenStr)
+	token = &TokenResponse{
+		AccessToken:  tokenStr,
+		TokenType:    TokenTypeBearer,
+		ExpiresIn:    tokenClaims.ExpiresAt,
+		RefreshToken: refreshToken,
+		Scope:        scope,
+	}
+	return
+}
+
+// 客户端凭证（client credentials）
+func (srv *Server) tokenClientCredentials(client *ClientBasic, scope string) (token *TokenResponse, err error) {
+	err = srv.VerifyCredentialsScope(client.ID, strings.Split(scope, " "))
+	if err != nil {
+		return
+	}
+	claims := NewJwtClaims()
+	var tokenStr string
+	tokenStr, err = client.GenerateAccessToken(claims)
+	if err != nil {
+		return
+	}
+	var refreshToken string
+	refreshToken, err = client.GenerateRefreshToken(srv.JwtIssuer, tokenStr)
+	if err != nil {
+		return
+	}
+	token = &TokenResponse{
+		AccessToken:  tokenStr,
+		TokenType:    TokenTypeBearer,
+		ExpiresIn:    claims.ExpiresAt,
+		RefreshToken: refreshToken,
+		Scope:        scope,
+	}
+	return
+}
+
+// 刷新Token
+func (srv *Server) refreshToken(client *ClientBasic, refreshToken string) (token *TokenResponse, err error) {
+	refreshTokenClaims := NewJwtClaims()
+	refreshTokenClaims, err = client.ParseAccessToken(refreshToken)
+	if err != nil {
+		return
+	}
+	if refreshTokenClaims.Subject != client.ID {
+		err = ErrUnauthorizedClient
+		return
+	}
+	if refreshTokenClaims.Scope != ScopeRefreshToken {
+		err = ErrInvalidScope
+		return
+	}
+	refreshTokenClaims.ExpiresAt = time.Now().Add(AccessTokenExpire).Unix()
+
+	tokenClaims := NewJwtClaims()
+	tokenClaims, err = client.ParseAccessToken(refreshTokenClaims.Id)
+	if err != nil {
+		return
+	}
+	if tokenClaims.Subject != client.ID {
+		err = ErrUnauthorizedClient
+		return
+	}
+	tokenClaims.ExpiresAt = time.Now().Add(AccessTokenExpire).Unix()
+
+	var refreshTokenStr string
+	refreshTokenStr, err = client.GenerateAccessToken(refreshTokenClaims)
+	if err != nil {
+		return
+	}
+	var tokenStr string
+	tokenStr, err = client.GenerateAccessToken(tokenClaims)
+	if err != nil {
+		return
+	}
+	token = &TokenResponse{
+		AccessToken:  tokenStr,
+		RefreshToken: refreshTokenStr,
+		TokenType:    TokenTypeBearer,
+		ExpiresIn:    refreshTokenClaims.ExpiresAt,
+		Scope:        tokenClaims.Scope,
+	}
+	return
 }
