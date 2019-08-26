@@ -2,10 +2,11 @@ package oauth2
 
 import (
 	"encoding/json"
-	"github.com/nilorg/sdk/random"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/nilorg/sdk/random"
 )
 
 const (
@@ -79,10 +80,12 @@ func RedirectError(w http.ResponseWriter, r *http.Request, redirectURI *url.URL,
 	http.Redirect(w, r, redirectURI.String(), http.StatusFound)
 }
 
+// RandomState 随机State
 func RandomState() string {
 	return random.AZaz09(6)
 }
 
+// RandomCode 随机Code
 func RandomCode() string {
 	return random.AZaz09(12)
 }

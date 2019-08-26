@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Server OAuth2Server
 type Server struct {
 	VerifyClient           VerifyClientFunc
 	VerifyCredentialsScope VerifyCredentialsScopeFunc
@@ -15,22 +16,19 @@ type Server struct {
 	VerifyAuthorization    VerifyAuthorizationFunc
 	GenerateCode           GenerateCodeFunc
 	VerifyCode             VerifyCodeFunc
-	serveMux               *http.ServeMux
-	HandleAuthorize        http.HandlerFunc
-	HandleToken            http.HandlerFunc
 	Log                    Logger
 	JwtIssuer              string
 }
 
+// NewServer 创建服务器
 func NewServer() *Server {
-	serveMux := http.NewServeMux()
 	return &Server{
 		Log:       &DefaultLogger{},
-		serveMux:  serveMux,
 		JwtIssuer: "github.com/nilorg/oauth2",
 	}
 }
 
+// Init 初始化
 func (srv *Server) Init() {
 	if srv.VerifyClient == nil {
 		panic(ErrVerifyClientFuncNil)
@@ -50,48 +48,21 @@ func (srv *Server) Init() {
 	if srv.VerifyCode == nil {
 		panic(ErrVerifyCodeFuncNil)
 	}
-	if srv.HandleAuthorize == nil {
-		srv.HandleAuthorize = func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodGet {
-				WriterError(w, ErrRequestMethod)
-			} else {
-				srv.handleAuthorize(w, r)
-			}
-		}
-	}
-
-	if srv.HandleToken == nil {
-		srv.HandleToken = func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodPost {
-				WriterError(w, ErrRequestMethod)
-				return
-			}
-			if r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
-				WriterError(w, ErrInvalidRequest)
-				return
-			}
-			srv.handleToken(w, r)
-		}
-	}
-	srv.Log.Debugf("GET %s", "/authorize")
-	srv.serveMux.Handle("/authorize", srv.HandleAuthorize)
-	srv.Log.Debugf("POST %s", "/token")
-	srv.serveMux.Handle("/token", srv.HandleToken)
 }
 
-func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
+// HandleAuthorize 处理Authorize
+func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// 判断参数
-	queryValues := r.URL.Query()
-	responseType := queryValues.Get(ResponseTypeKey)
-	clientID := queryValues.Get(ClientIdKey)
-	redirectURIStr := queryValues.Get(RedirectUriKey)
+	responseType := r.Form.Get(ResponseTypeKey)
+	clientID := r.Form.Get(ClientIdKey)
+	redirectURIStr := r.Form.Get(RedirectUriKey)
 	redirectURI, err := url.Parse(redirectURIStr)
 	if err != nil {
 		WriterError(w, ErrInvalidRequest)
 		return
 	}
-	scope := queryValues.Get(ScopeKey)
-	state := queryValues.Get(StateKey)
+	scope := r.Form.Get(ScopeKey)
+	state := r.Form.Get(StateKey)
 	if responseType == "" || clientID == "" {
 		RedirectError(w, r, redirectURI, ErrInvalidRequest)
 		return
@@ -119,7 +90,8 @@ func (srv *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
+// HandleToken 处理Token
+func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	var reqClientBasic *ClientBasic
 	var err error
@@ -163,7 +135,6 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 		model, err := srv.tokenAuthorizationCode(clientBasic, code, redirectURIStr)
 		if err != nil {
 			WriterError(w, err)
-			return
 		} else {
 			WriterJSON(w, model)
 		}
@@ -179,7 +150,6 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 		model, err := srv.tokenResourceOwnerPasswordCredentials(clientBasic, username, password, scope)
 		if err != nil {
 			WriterError(w, err)
-			return
 		} else {
 			WriterJSON(w, model)
 		}
@@ -188,7 +158,6 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 		model, err := srv.tokenClientCredentials(clientBasic, scope)
 		if err != nil {
 			WriterError(w, err)
-			return
 		} else {
 			WriterJSON(w, model)
 		}
@@ -197,23 +166,19 @@ func (srv *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (srv *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	srv.serveMux.ServeHTTP(res, req)
-}
-
 // 授权码（authorization-code）
-func (srv *Server) authorizeAuthorizationCode(clientID, redirectUri, scope string) (code string, err error) {
-	return srv.GenerateCode(clientID, redirectUri, strings.Split(scope, " "))
+func (srv *Server) authorizeAuthorizationCode(clientID, redirectURI, scope string) (code string, err error) {
+	return srv.GenerateCode(clientID, redirectURI, strings.Split(scope, " "))
 }
 
-func (srv *Server) tokenAuthorizationCode(client *ClientBasic, code, redirectUri string) (token *TokenResponse, err error) {
+func (srv *Server) tokenAuthorizationCode(client *ClientBasic, code, redirectURI string) (token *TokenResponse, err error) {
 	var value *CodeValue
-	value, err = srv.VerifyCode(code, client.ID, redirectUri)
+	value, err = srv.VerifyCode(code, client.ID, redirectURI)
 	if err != nil {
 		return
 	}
 	tokenClaims := NewJwtClaims()
-	tokenClaims.Audience = redirectUri
+	tokenClaims.Audience = redirectURI
 	var tokenStr string
 	tokenStr, err = client.GenerateAccessToken(tokenClaims)
 	if err != nil {
@@ -232,18 +197,18 @@ func (srv *Server) tokenAuthorizationCode(client *ClientBasic, code, redirectUri
 }
 
 // 隐藏式（implicit）
-func (srv *Server) authorizeImplicit(clientID, redirectUri, scope string) (token *TokenResponse, err error) {
+func (srv *Server) authorizeImplicit(clientID, redirectURI, scope string) (token *TokenResponse, err error) {
 	var client *ClientBasic
 	client, err = srv.VerifyClient(clientID)
 	if err != nil {
 		return
 	}
-	err = srv.VerifyAuthorization(clientID, redirectUri, strings.Split(scope, " "))
+	err = srv.VerifyAuthorization(clientID, redirectURI, strings.Split(scope, " "))
 	if err != nil {
 		return
 	}
 	tokenClaims := NewJwtClaims()
-	tokenClaims.Audience = redirectUri
+	tokenClaims.Audience = redirectURI
 	var tokenStr string
 	tokenStr, err = client.GenerateAccessToken(tokenClaims)
 	if err != nil {

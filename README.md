@@ -36,9 +36,10 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/nilorg/oauth2"
-	"net/http"
 )
 
 var (
@@ -95,9 +96,11 @@ func main() {
 	srv.Init()
 
 	// =============Http Default=============
-	//if err := http.ListenAndServe(":8003", srv); err != nil {
-	//	fmt.Printf("%+v\n", err)
-	//}
+	// http.HandleFunc("/authorize", srv.HandleAuthorize)
+	// http.HandleFunc("/token", srv.HandleToken)
+	// if err := http.ListenAndServe(":8003", srv); err != nil {
+	// 	fmt.Printf("%+v\n", err)
+	// }
 
 	// =============Gin=============
 	r := gin.Default()

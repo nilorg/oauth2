@@ -6,7 +6,6 @@ import (
 )
 
 var (
-	ErrRequestMethod = errors.New("incorrect request method")
 	// ErrInvalidRequest 无效的请求
 	ErrInvalidRequest = errors.New("invalid_request")
 	// ErrUnauthorizedClient 未经授权的客户端
@@ -30,13 +29,12 @@ var (
 )
 
 var (
-	ErrVerifyClientFuncNil = errors.New("OAuth2 Server VerifyClient Is Nil")
+	ErrVerifyClientFuncNil           = errors.New("OAuth2 Server VerifyClient Is Nil")
 	ErrVerifyCredentialsScopeFuncNil = errors.New("OAuth2 Server VerifyCredentialsScope Is Nil")
-	ErrVerifyPasswordFuncNil = errors.New("OAuth2 Server VerifyPassword Is Nil")
-	ErrVerifyAuthorizationFuncNil = errors.New("OAuth2 Server VerifyAuthorization Is Nil")
-	ErrGenerateCodeFuncNil = errors.New("OAuth2 Server GenerateCode Is Nil")
-	ErrVerifyCodeFuncNil = errors.New("OAuth2 Server VerifyCode Is Nil")
-
+	ErrVerifyPasswordFuncNil         = errors.New("OAuth2 Server VerifyPassword Is Nil")
+	ErrVerifyAuthorizationFuncNil    = errors.New("OAuth2 Server VerifyAuthorization Is Nil")
+	ErrGenerateCodeFuncNil           = errors.New("OAuth2 Server GenerateCode Is Nil")
+	ErrVerifyCodeFuncNil             = errors.New("OAuth2 Server VerifyCode Is Nil")
 
 	// ErrInvalidAccessToken 无效的访问令牌
 	ErrInvalidAccessToken    = errors.New("invalid_access_token")
@@ -46,12 +44,11 @@ var (
 
 var (
 	Errors = map[string]error{
-		ErrVerifyClientFuncNil.Error():    ErrVerifyClientFuncNil,
+		ErrVerifyClientFuncNil.Error():   ErrVerifyClientFuncNil,
 		ErrInvalidAccessToken.Error():    ErrInvalidAccessToken,
 		ErrStateValueDidNotMatch.Error(): ErrStateValueDidNotMatch,
 		ErrMissingAccessToken.Error():    ErrMissingAccessToken,
 
-		ErrRequestMethod.Error():           ErrRequestMethod,
 		ErrInvalidRequest.Error():          ErrInvalidRequest,
 		ErrUnauthorizedClient.Error():      ErrUnauthorizedClient,
 		ErrAccessDenied.Error():            ErrAccessDenied,
