@@ -53,16 +53,16 @@ func (srv *Server) Init() {
 // HandleAuthorize 处理Authorize
 func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// 判断参数
-	responseType := r.Form.Get(ResponseTypeKey)
-	clientID := r.Form.Get(ClientIdKey)
-	redirectURIStr := r.Form.Get(RedirectUriKey)
+	responseType := r.FormValue(ResponseTypeKey)
+	clientID := r.FormValue(ClientIdKey)
+	redirectURIStr := r.FormValue(RedirectUriKey)
 	redirectURI, err := url.Parse(redirectURIStr)
 	if err != nil {
 		WriterError(w, ErrInvalidRequest)
 		return
 	}
-	scope := r.Form.Get(ScopeKey)
-	state := r.Form.Get(StateKey)
+	scope := r.FormValue(ScopeKey)
+	state := r.FormValue(StateKey)
 	if responseType == "" || clientID == "" {
 		RedirectError(w, r, redirectURI, ErrInvalidRequest)
 		return
