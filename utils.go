@@ -4,18 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/nilorg/sdk/random"
-)
-
-const (
-	contentTypeJson    = "application/json;charset=UTF-8"
-	AccessTokenExpire  = time.Second * 3600
-	RefreshTokenExpire = AccessTokenExpire / 2
-	TokenTypeBearer    = "Bearer"
-	ScopeRefreshToken  = "refresh_token"
-	DefaultJwtIssuer   = "github.com/nilorg/oauth2"
 )
 
 // RequestClientBasic 获取请求中的客户端信息

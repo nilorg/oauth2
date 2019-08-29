@@ -10,14 +10,15 @@ import (
 
 // Server OAuth2Server
 type Server struct {
-	VerifyClient           VerifyClientFunc
-	VerifyCredentialsScope VerifyCredentialsScopeFunc
-	VerifyPassword         VerifyPasswordFunc
-	VerifyAuthorization    VerifyAuthorizationFunc
-	GenerateCode           GenerateCodeFunc
-	VerifyCode             VerifyCodeFunc
-	Log                    Logger
-	JwtIssuer              string
+	VerifyClient VerifyClientFunc
+	VerifyScope  VerifyScopeFunc
+	// VerifyCredentials   VerifyCredentialsFunc
+	VerifyPassword      VerifyPasswordFunc
+	VerifyAuthorization VerifyAuthorizationFunc
+	GenerateCode        GenerateCodeFunc
+	VerifyCode          VerifyCodeFunc
+	Log                 Logger
+	JwtIssuer           string
 }
 
 // NewServer 创建服务器
@@ -33,9 +34,9 @@ func (srv *Server) Init() {
 	if srv.VerifyClient == nil {
 		panic(ErrVerifyClientFuncNil)
 	}
-	if srv.VerifyCredentialsScope == nil {
-		panic(ErrVerifyCredentialsScopeFuncNil)
-	}
+	// if srv.VerifyCredentials == nil {
+	// 	panic(ErrVerifyCredentialsFuncNil)
+	// }
 	if srv.VerifyPassword == nil {
 		panic(ErrVerifyPasswordFuncNil)
 	}
@@ -67,6 +68,12 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		RedirectError(w, r, redirectURI, ErrInvalidRequest)
 		return
 	}
+
+	if err := srv.VerifyScope(strings.Split(scope, " ")); err != nil {
+		RedirectError(w, r, redirectURI, ErrInvalidScope)
+		return
+	}
+
 	switch responseType {
 	case CodeKey:
 		code, err := srv.authorizeAuthorizationCode(clientID, redirectURIStr, scope)
@@ -116,6 +123,13 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 		WriterError(w, ErrInvalidRequest)
 		return
 	}
+
+	scope := r.PostFormValue(ScopeKey)
+	if err := srv.VerifyScope(strings.Split(scope, " ")); err != nil {
+		WriterError(w, ErrInvalidScope)
+		return
+	}
+
 	if grantType == RefreshTokenKey {
 		refreshToken := r.PostFormValue(RefreshTokenKey)
 		model, err := srv.refreshToken(clientBasic, refreshToken)
@@ -141,7 +155,6 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 	} else if grantType == PasswordKey {
 		username := r.PostFormValue(UsernameKey)
 		password := r.PostFormValue(PasswordKey)
-		scope := r.PostFormValue(ScopeKey)
 		if username == "" || password == "" {
 			WriterError(w, ErrInvalidRequest)
 			return
@@ -154,7 +167,6 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 			WriterJSON(w, model)
 		}
 	} else if grantType == ClientCredentialsKey {
-		scope := r.PostFormValue(ScopeKey)
 		model, err := srv.tokenClientCredentials(clientBasic, scope)
 		if err != nil {
 			WriterError(w, err)
@@ -203,7 +215,7 @@ func (srv *Server) authorizeImplicit(clientID, redirectURI, scope string) (token
 	if err != nil {
 		return
 	}
-	err = srv.VerifyAuthorization(clientID, redirectURI, strings.Split(scope, " "))
+	err = srv.VerifyAuthorization(clientID, redirectURI)
 	if err != nil {
 		return
 	}
@@ -228,7 +240,7 @@ func (srv *Server) authorizeImplicit(clientID, redirectURI, scope string) (token
 
 // 密码式（password）
 func (srv *Server) tokenResourceOwnerPasswordCredentials(client *ClientBasic, username, password, scope string) (token *TokenResponse, err error) {
-	err = srv.VerifyPassword(username, password, strings.Split(scope, " "))
+	err = srv.VerifyPassword(username, password)
 	if err != nil {
 		return
 	}
@@ -252,10 +264,10 @@ func (srv *Server) tokenResourceOwnerPasswordCredentials(client *ClientBasic, us
 
 // 客户端凭证（client credentials）
 func (srv *Server) tokenClientCredentials(client *ClientBasic, scope string) (token *TokenResponse, err error) {
-	err = srv.VerifyCredentialsScope(client.ID, strings.Split(scope, " "))
-	if err != nil {
-		return
-	}
+	// err = srv.VerifyCredentials(client.ID)
+	// if err != nil {
+	// 	return
+	// }
 	claims := NewJwtClaims()
 	var tokenStr string
 	tokenStr, err = client.GenerateAccessToken(claims)

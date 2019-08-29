@@ -19,8 +19,7 @@ func newJwtToken(claims jwt.Claims, jwtVerifyKey []byte) (string, error) {
 }
 
 func NewAccessToken(claims *JwtClaims, jwtVerifyKey []byte) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtVerifyKey)
+	return newJwtToken(claims, jwtVerifyKey)
 }
 
 func ParseAccessToken(accessToken string, jwtVerifyKey []byte) (claims *JwtClaims, err error) {

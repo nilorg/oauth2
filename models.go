@@ -19,7 +19,7 @@ type ErrorResponse struct {
 
 type CodeValue struct {
 	ClientID    string   `json:"client_id"`
-	RedirectUri string   `json:"redirect_uri"`
+	RedirectURI string   `json:"redirect_uri"`
 	Scope       []string `json:"scope"`
 }
 
@@ -36,6 +36,8 @@ func (client *ClientBasic) GenerateAccessToken(claims *JwtClaims) (token string,
 	if claims.ExpiresAt == 0 {
 		claims.ExpiresAt = time.Now().Add(AccessTokenExpire).Unix()
 	}
+	claims.IssuedAt = time.Now().Unix()
+	claims.NotBefore = time.Now().Unix()
 	token, err = NewAccessToken(claims, []byte(client.ID+client.Secret))
 	if err != nil {
 		err = ErrServerError
@@ -49,6 +51,7 @@ func (client *ClientBasic) GenerateRefreshToken(issuer, accessToken string) (tok
 		claims.Issuer = DefaultJwtIssuer
 	}
 	claims.IssuedAt = time.Now().Unix()
+	claims.NotBefore = time.Now().Unix()
 	claims.Subject = client.ID
 	claims.ExpiresAt = time.Now().Add(RefreshTokenExpire).Unix()
 	claims.Subject = ScopeRefreshToken

@@ -29,12 +29,12 @@ var (
 )
 
 var (
-	ErrVerifyClientFuncNil           = errors.New("OAuth2 Server VerifyClient Is Nil")
-	ErrVerifyCredentialsScopeFuncNil = errors.New("OAuth2 Server VerifyCredentialsScope Is Nil")
-	ErrVerifyPasswordFuncNil         = errors.New("OAuth2 Server VerifyPassword Is Nil")
-	ErrVerifyAuthorizationFuncNil    = errors.New("OAuth2 Server VerifyAuthorization Is Nil")
-	ErrGenerateCodeFuncNil           = errors.New("OAuth2 Server GenerateCode Is Nil")
-	ErrVerifyCodeFuncNil             = errors.New("OAuth2 Server VerifyCode Is Nil")
+	ErrVerifyClientFuncNil        = errors.New("OAuth2 Server VerifyClient Is Nil")
+	ErrVerifyCredentialsFuncNil   = errors.New("OAuth2 Server VerifyCredentials Is Nil")
+	ErrVerifyPasswordFuncNil      = errors.New("OAuth2 Server VerifyPassword Is Nil")
+	ErrVerifyAuthorizationFuncNil = errors.New("OAuth2 Server VerifyAuthorization Is Nil")
+	ErrGenerateCodeFuncNil        = errors.New("OAuth2 Server GenerateCode Is Nil")
+	ErrVerifyCodeFuncNil          = errors.New("OAuth2 Server VerifyCode Is Nil")
 
 	// ErrInvalidAccessToken 无效的访问令牌
 	ErrInvalidAccessToken    = errors.New("invalid_access_token")
