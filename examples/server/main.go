@@ -38,7 +38,7 @@ func main() {
 		}
 		return
 	}
-	srv.GenerateCode = func(clientID, redirectURI string, scope []string) (code string, err error) {
+	srv.GenerateCode = func(clientID, openID, redirectURI string, scope []string) (code string, err error) {
 		code = oauth2.RandomCode()
 		return
 	}
@@ -49,16 +49,15 @@ func main() {
 		return
 	}
 
-	srv.VerifyPassword = func(username, password string) (err error) {
+	srv.VerifyPassword = func(username, password string) (openID string, err error) {
 		if username != "a" || password != "b" {
 			err = oauth2.ErrUnauthorizedClient
+			return
 		}
+		openID = "xxxx"
 		return
 	}
 
-	// srv.VerifyCredentials = func(clientID string) (err error) {
-	// 	return
-	// }
 	srv.Init()
 
 	// =============Http Default=============

@@ -30,7 +30,6 @@ var (
 
 var (
 	ErrVerifyClientFuncNil        = errors.New("OAuth2 Server VerifyClient Is Nil")
-	ErrVerifyCredentialsFuncNil   = errors.New("OAuth2 Server VerifyCredentials Is Nil")
 	ErrVerifyPasswordFuncNil      = errors.New("OAuth2 Server VerifyPassword Is Nil")
 	ErrVerifyAuthorizationFuncNil = errors.New("OAuth2 Server VerifyAuthorization Is Nil")
 	ErrGenerateCodeFuncNil        = errors.New("OAuth2 Server GenerateCode Is Nil")
