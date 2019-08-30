@@ -9,17 +9,19 @@ import (
 	"strings"
 )
 
+// Client oauth2 client
 type Client struct {
 	Log                   Logger
 	httpClient            *http.Client
-	ServerBaseUrl         string
+	ServerBaseURL         string
 	AuthorizationEndpoint string
 	TokenEndpoint         string
-	Id                    string
+	ID                    string
 	Secret                string
 }
 
-func NewClient(serverBaseUrl, id, secret string) *Client {
+// NewClient new oauth2 client
+func NewClient(serverBaseURL, id, secret string) *Client {
 	httpclient := &http.Client{}
 	httpclient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
@@ -27,24 +29,24 @@ func NewClient(serverBaseUrl, id, secret string) *Client {
 	return &Client{
 		Log:                   &DefaultLogger{},
 		httpClient:            httpclient,
-		ServerBaseUrl:         serverBaseUrl,
+		ServerBaseURL:         serverBaseURL,
 		AuthorizationEndpoint: "/authorize",
 		TokenEndpoint:         "/token",
-		Id:                    id,
+		ID:                    id,
 		Secret:                secret,
 	}
 }
 
-func (c *Client) authorize(w http.ResponseWriter, responseType, redirectUri, scope, state string) (err error) {
+func (c *Client) authorize(w http.ResponseWriter, responseType, redirectURI, scope, state string) (err error) {
 	var uri *url.URL
-	uri, err = url.Parse(c.ServerBaseUrl + c.AuthorizationEndpoint)
+	uri, err = url.Parse(c.ServerBaseURL + c.AuthorizationEndpoint)
 	if err != nil {
 		return
 	}
 	query := uri.Query()
 	query.Set(ResponseTypeKey, responseType)
-	query.Set(ClientIdKey, c.Id)
-	query.Set(RedirectUriKey, redirectUri)
+	query.Set(ClientIDKey, c.ID)
+	query.Set(RedirectURIKey, redirectURI)
 	query.Set(ScopeKey, scope)
 	query.Set(StateKey, state)
 	uri.RawQuery = query.Encode()
@@ -60,26 +62,29 @@ func (c *Client) authorize(w http.ResponseWriter, responseType, redirectUri, sco
 	return
 }
 
-func (c *Client) AuthorizeAuthorizationCode(w http.ResponseWriter, redirectUri, scope, state string) (err error) {
-	return c.authorize(w, CodeKey, redirectUri, scope, state)
+// AuthorizeAuthorizationCode ...
+func (c *Client) AuthorizeAuthorizationCode(w http.ResponseWriter, redirectURI, scope, state string) (err error) {
+	return c.authorize(w, CodeKey, redirectURI, scope, state)
 }
 
-func (c *Client) TokenAuthorizationCode(code, redirectUri, state string) (token *TokenResponse, err error) {
+// TokenAuthorizationCode ...
+func (c *Client) TokenAuthorizationCode(code, redirectURI, state string) (token *TokenResponse, err error) {
 	values := url.Values{
 		CodeKey:        []string{code},
-		RedirectUriKey: []string{redirectUri},
+		RedirectURIKey: []string{redirectURI},
 		StateKey:       []string{state},
 	}
 	return c.token(AuthorizationCodeKey, values)
 }
 
-func (c *Client) AuthorizeImplicit(w http.ResponseWriter, redirectUri, scope, state string) (err error) {
-	return c.authorize(w, TokenKey, redirectUri, scope, state)
+// AuthorizeImplicit ...
+func (c *Client) AuthorizeImplicit(w http.ResponseWriter, redirectURI, scope, state string) (err error) {
+	return c.authorize(w, TokenKey, redirectURI, scope, state)
 }
 
 func (c *Client) token(grantType string, values url.Values) (token *TokenResponse, err error) {
 	var uri *url.URL
-	uri, err = url.Parse(c.ServerBaseUrl + c.TokenEndpoint)
+	uri, err = url.Parse(c.ServerBaseURL + c.TokenEndpoint)
 	if err != nil {
 		return
 	}
@@ -96,7 +101,7 @@ func (c *Client) token(grantType string, values url.Values) (token *TokenRespons
 		return
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(c.Id, c.Secret)
+	req.SetBasicAuth(c.ID, c.Secret)
 	var resp *http.Response
 	resp, err = c.httpClient.Do(req)
 	if err != nil {
@@ -122,6 +127,7 @@ func (c *Client) token(grantType string, values url.Values) (token *TokenRespons
 	return
 }
 
+// TokenResourceOwnerPasswordCredentials ...
 func (c *Client) TokenResourceOwnerPasswordCredentials(username, password string) (model *TokenResponse, err error) {
 	values := url.Values{
 		UsernameKey: []string{username},
@@ -130,10 +136,12 @@ func (c *Client) TokenResourceOwnerPasswordCredentials(username, password string
 	return c.token(PasswordKey, values)
 }
 
+// TokenClientCredentials ...
 func (c *Client) TokenClientCredentials() (model *TokenResponse, err error) {
 	return c.token(ClientCredentialsKey, nil)
 }
 
+// RefreshToken ...
 func (c *Client) RefreshToken(refreshToken string) (model *TokenResponse, err error) {
 	values := url.Values{
 		RefreshTokenKey: []string{refreshToken},

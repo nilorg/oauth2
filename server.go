@@ -51,8 +51,8 @@ func (srv *Server) Init() {
 func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// 判断参数
 	responseType := r.FormValue(ResponseTypeKey)
-	clientID := r.FormValue(ClientIdKey)
-	redirectURIStr := r.FormValue(RedirectUriKey)
+	clientID := r.FormValue(ClientIDKey)
+	redirectURIStr := r.FormValue(RedirectURIKey)
 	redirectURI, err := url.Parse(redirectURIStr)
 	if err != nil {
 		WriterError(w, ErrInvalidRequest)
@@ -142,7 +142,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 		}
 	} else if grantType == AuthorizationCodeKey {
 		code := r.PostFormValue(CodeKey)
-		redirectURIStr := r.PostFormValue(RedirectUriKey)
+		redirectURIStr := r.PostFormValue(RedirectURIKey)
 		if code == "" || redirectURIStr == "" {
 			WriterError(w, ErrInvalidRequest)
 			return
@@ -192,21 +192,7 @@ func (srv *Server) tokenAuthorizationCode(client *ClientBasic, code, redirectURI
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	tokenClaims := NewJwtClaims(srv.JwtIssuer, client.ID, scope, redirectURI, value.UserID)
-	var tokenStr string
-	tokenStr, err = client.GenerateAccessToken(srv.JwtIssuer, redirectURI, scope, value.UserID)
-	if err != nil {
-		return
-	}
-	var refreshTokenStr string
-	refreshTokenStr, err = client.GenerateRefreshToken(srv.JwtIssuer, tokenStr)
-	token = &TokenResponse{
-		AccessToken:  tokenStr,
-		TokenType:    TokenTypeBearer,
-		ExpiresIn:    tokenClaims.ExpiresAt,
-		RefreshToken: refreshTokenStr,
-		Scope:        scope,
-	}
+	token, err = client.GenerateAccessToken(srv.JwtIssuer, redirectURI, scope, value.UserID)
 	return
 }
 
@@ -222,20 +208,7 @@ func (srv *Server) authorizeImplicit(clientID, redirectURI, scope, openID string
 		return
 	}
 
-	var tokenStr string
-	tokenStr, err = client.GenerateAccessToken(srv.JwtIssuer, redirectURI, scope, openID)
-	if err != nil {
-		return
-	}
-	var refreshToken string
-	refreshToken, err = client.GenerateRefreshToken(srv.JwtIssuer, tokenStr)
-	token = &TokenResponse{
-		AccessToken:  tokenStr,
-		TokenType:    TokenTypeBearer,
-		ExpiresIn:    tokenClaims.ExpiresAt,
-		RefreshToken: refreshToken,
-		Scope:        scope,
-	}
+	token, err = client.GenerateAccessToken(srv.JwtIssuer, redirectURI, scope, openID)
 	return
 }
 
@@ -246,42 +219,13 @@ func (srv *Server) tokenResourceOwnerPasswordCredentials(client *ClientBasic, us
 	if err != nil {
 		return
 	}
-	var tokenStr string
-	tokenStr, err = client.GenerateAccessToken(srv.JwtIssuer, "", scope, openID)
-	if err != nil {
-		return
-	}
-	var refreshToken string
-	refreshToken, err = client.GenerateRefreshToken(srv.JwtIssuer, tokenStr)
-	token = &TokenResponse{
-		AccessToken:  tokenStr,
-		TokenType:    TokenTypeBearer,
-		ExpiresIn:    tokenClaims.ExpiresAt,
-		RefreshToken: refreshToken,
-		Scope:        scope,
-	}
+	token, err = client.GenerateAccessToken(srv.JwtIssuer, "", scope, openID)
 	return
 }
 
 // 客户端凭证（client credentials）
 func (srv *Server) tokenClientCredentials(client *ClientBasic, scope string) (token *TokenResponse, err error) {
-	var tokenStr string
-	tokenStr, err = client.GenerateAccessToken(srv.JwtIssuer, "", scope, "")
-	if err != nil {
-		return
-	}
-	var refreshToken string
-	refreshToken, err = client.GenerateRefreshToken(srv.JwtIssuer, tokenStr)
-	if err != nil {
-		return
-	}
-	token = &TokenResponse{
-		AccessToken:  tokenStr,
-		TokenType:    TokenTypeBearer,
-		ExpiresIn:    claims.ExpiresAt,
-		RefreshToken: refreshToken,
-		Scope:        scope,
-	}
+	token, err = client.GenerateAccessToken(srv.JwtIssuer, "", scope, "")
 	return
 }
 
@@ -302,6 +246,7 @@ func (srv *Server) refreshToken(client *ClientBasic, refreshToken string) (token
 	}
 	refreshTokenClaims.ExpiresAt = time.Now().Add(AccessTokenExpire).Unix()
 
+	var tokenClaims *JwtClaims
 	tokenClaims, err = client.ParseAccessToken(refreshTokenClaims.Id)
 	if err != nil {
 		return
@@ -313,15 +258,12 @@ func (srv *Server) refreshToken(client *ClientBasic, refreshToken string) (token
 	tokenClaims.ExpiresAt = time.Now().Add(AccessTokenExpire).Unix()
 
 	var refreshTokenStr string
-	refreshTokenStr, err = client.GenerateAccessToken(srv.JwtIssuer, refreshTokenClaims)
+	refreshTokenStr, err = NewAccessToken(refreshTokenClaims, client.TokenVerifyKey())
 	if err != nil {
 		return
 	}
 	var tokenStr string
-	tokenStr, err = client.GenerateAccessToken(srv.JwtIssuer, tokenClaims)
-	if err != nil {
-		return
-	}
+	tokenStr, err = NewAccessToken(tokenClaims, client.TokenVerifyKey())
 	token = &TokenResponse{
 		AccessToken:  tokenStr,
 		RefreshToken: refreshTokenStr,

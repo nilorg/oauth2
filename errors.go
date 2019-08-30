@@ -29,19 +29,27 @@ var (
 )
 
 var (
-	ErrVerifyClientFuncNil        = errors.New("OAuth2 Server VerifyClient Is Nil")
-	ErrVerifyPasswordFuncNil      = errors.New("OAuth2 Server VerifyPassword Is Nil")
+	// ErrVerifyClientFuncNil ...
+	ErrVerifyClientFuncNil = errors.New("OAuth2 Server VerifyClient Is Nil")
+	// ErrVerifyPasswordFuncNil ...
+	ErrVerifyPasswordFuncNil = errors.New("OAuth2 Server VerifyPassword Is Nil")
+	// ErrVerifyAuthorizationFuncNil ...
 	ErrVerifyAuthorizationFuncNil = errors.New("OAuth2 Server VerifyAuthorization Is Nil")
-	ErrGenerateCodeFuncNil        = errors.New("OAuth2 Server GenerateCode Is Nil")
-	ErrVerifyCodeFuncNil          = errors.New("OAuth2 Server VerifyCode Is Nil")
+	// ErrGenerateCodeFuncNil ...
+	ErrGenerateCodeFuncNil = errors.New("OAuth2 Server GenerateCode Is Nil")
+	// ErrVerifyCodeFuncNil ...
+	ErrVerifyCodeFuncNil = errors.New("OAuth2 Server VerifyCode Is Nil")
 
 	// ErrInvalidAccessToken 无效的访问令牌
-	ErrInvalidAccessToken    = errors.New("invalid_access_token")
+	ErrInvalidAccessToken = errors.New("invalid_access_token")
+	// ErrStateValueDidNotMatch ...
 	ErrStateValueDidNotMatch = errors.New("state value did not match")
-	ErrMissingAccessToken    = errors.New("missing access token")
+	// ErrMissingAccessToken ...
+	ErrMissingAccessToken = errors.New("missing access token")
 )
 
 var (
+	// Errors ...
 	Errors = map[string]error{
 		ErrVerifyClientFuncNil.Error():   ErrVerifyClientFuncNil,
 		ErrInvalidAccessToken.Error():    ErrInvalidAccessToken,
@@ -59,7 +67,7 @@ var (
 		ErrServerError.Error():             ErrServerError,
 		ErrInvalidClient.Error():           ErrInvalidClient,
 	}
-
+	// ErrStatusCodes ...
 	ErrStatusCodes = map[error]int{
 		ErrInvalidRequest:          http.StatusBadRequest,
 		ErrUnauthorizedClient:      http.StatusUnauthorized,

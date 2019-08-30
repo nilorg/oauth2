@@ -3,10 +3,15 @@ package oauth2
 import "time"
 
 const (
-	contentTypeJson    = "application/json;charset=UTF-8"
-	AccessTokenExpire  = time.Second * 3600
+	contentTypeJSON = "application/json;charset=UTF-8"
+	// AccessTokenExpire ...
+	AccessTokenExpire = time.Second * 3600
+	// RefreshTokenExpire ...
 	RefreshTokenExpire = AccessTokenExpire / 2
-	TokenTypeBearer    = "Bearer"
-	ScopeRefreshToken  = "refresh_token"
-	DefaultJwtIssuer   = "github.com/nilorg/oauth2"
+	// TokenTypeBearer ...
+	TokenTypeBearer = "Bearer"
+	// ScopeRefreshToken ...
+	ScopeRefreshToken = "refresh_token"
+	// DefaultJwtIssuer ...
+	DefaultJwtIssuer = "github.com/nilorg/oauth2"
 )

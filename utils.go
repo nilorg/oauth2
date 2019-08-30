@@ -23,7 +23,7 @@ func RequestClientBasic(r *http.Request) (basic *ClientBasic, err error) {
 }
 func writerJSON(w http.ResponseWriter, statusCode int, value interface{}) (err error) {
 	w.WriteHeader(statusCode)
-	w.Header().Set("Content-Type", contentTypeJson)
+	w.Header().Set("Content-Type", contentTypeJSON)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
 	err = json.NewEncoder(w).Encode(value)

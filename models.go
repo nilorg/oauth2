@@ -30,26 +30,42 @@ type ClientBasic struct {
 }
 
 // GenerateAccessToken 生成AccessToken
-func (client *ClientBasic) GenerateAccessToken(issuer, redirectURI, scope, openID string) (token string, err error) {
+func (client *ClientBasic) GenerateAccessToken(issuer, redirectURI, scope, openID string) (token *TokenResponse, err error) {
 	claims := NewJwtClaims(issuer, client.ID, scope, redirectURI, openID)
 	claims.Audience = redirectURI
-	token, err = NewAccessToken(claims, []byte(client.ID+client.Secret))
+
+	var tokenStr string
+	tokenStr, err = NewAccessToken(claims, client.TokenVerifyKey())
 	if err != nil {
 		err = ErrServerError
+	}
+	var refreshTokenStr string
+	refreshTokenStr, err = client.GenerateRefreshToken(issuer, tokenStr, redirectURI)
+	if err != nil {
+		err = ErrServerError
+	}
+	token = &TokenResponse{
+		AccessToken:  tokenStr,
+		TokenType:    TokenTypeBearer,
+		ExpiresIn:    claims.ExpiresAt,
+		RefreshToken: refreshTokenStr,
+		Scope:        scope,
 	}
 	return
 }
 
 // GenerateRefreshToken 生成刷新Token
-func (client *ClientBasic) GenerateRefreshToken(issuer, accessToken string) (token string, err error) {
-	claims := NewJwtClaims(issuer, client.ID, ScopeRefreshToken, "", "")
+func (client *ClientBasic) GenerateRefreshToken(issuer, accessToken, redirectURI string) (token string, err error) {
+
+	claims := NewJwtClaims(issuer, client.ID, ScopeRefreshToken, redirectURI, "")
 	claims.Id = accessToken
-	return newJwtToken(claims, []byte(client.ID+client.Secret))
+
+	return newJwtToken(claims, client.TokenVerifyKey())
 }
 
 // ParseAccessToken 解析AccessToken为JwtClaims
 func (client *ClientBasic) ParseAccessToken(accessToken string) (claims *JwtClaims, err error) {
-	claims, err = ParseAccessToken(accessToken, []byte(client.ID+client.Secret))
+	claims, err = ParseAccessToken(accessToken, client.TokenVerifyKey())
 	if err != nil {
 		err = ErrServerError
 	}
@@ -57,4 +73,9 @@ func (client *ClientBasic) ParseAccessToken(accessToken string) (claims *JwtClai
 		err = ErrAccessDenied
 	}
 	return
+}
+
+// TokenVerifyKey ...
+func (client *ClientBasic) TokenVerifyKey() []byte {
+	return []byte(client.ID + client.Secret)
 }
