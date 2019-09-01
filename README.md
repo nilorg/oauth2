@@ -1,5 +1,11 @@
 # oauth2 (开发中...)
 
+# 例子
+
+[oauth2-server](https://github.com/nilorg/oauth2-server)
+
+[server/client](https://github.com/nilorg/oauth2/tree/master/examples)
+
 # 文档参考
 1. [《理解OAuth 2.0》阮一峰](http://www.ruanyifeng.com/blog/2014/05/oauth_2_0.html)
 2. [《RFC 6749》](http://www.rfcreader.com/#rfc6749)
