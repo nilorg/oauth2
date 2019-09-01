@@ -1,5 +1,14 @@
 # oauth2 (开发中...)
 
+# Usage
+```bash
+go get -u github.com/nilorg/oauth2
+```
+# Import
+```bash
+import "github.com/nilorg/oauth2"
+```
+
 # 例子
 
 [oauth2-server](https://github.com/nilorg/oauth2-server)
