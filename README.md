@@ -62,37 +62,41 @@ func main() {
 		}
 		return
 	}
-	srv.VerifyCode = func(code, clientID, redirectUri string) (value *oauth2.CodeValue, err error) {
+	srv.VerifyCode = func(code, clientID, redirectURI string) (value *oauth2.CodeValue, err error) {
 		//err = oauth2.ErrUnauthorizedClient
 		// 查询缓存/数据库中的code信息
 		value = &oauth2.CodeValue{
 			ClientID:    clientID,
-			RedirectUri: redirectUri,
+			RedirectURI: redirectURI,
 			Scope:       []string{"a", "b", "c"},
 		}
 		return
 	}
-	srv.GenerateCode = func(clientID, redirectUri string, scope []string) (code string, err error) {
+	srv.GenerateCode = func(clientID, openID, redirectURI string, scope []string) (code string, err error) {
 		code = oauth2.RandomCode()
 		return
 	}
-	srv.VerifyAuthorization = func(clientID, redirectUri string, scope []string) (err error) {
+	srv.VerifyRedirectURI = func(clientID, redirectURI string) (err error) {
 		fmt.Println(clientID)
-		fmt.Println(redirectUri)
-		fmt.Println(scope)
-		//err = oauth2.ErrUnauthorizedClient
+		fmt.Println(redirectURI)
+		// err = oauth2.ErrInvalidRedirectURI
 		return
 	}
-	srv.VerifyCredentialsScope = func(clientID string, scope []string) (err error) {
-		err = oauth2.ErrUnauthorizedClient
-		return
-	}
-	srv.VerifyPassword = func(username, password string, scope []string) (err error) {
+
+	srv.VerifyPassword = func(username, password string) (openID string, err error) {
 		if username != "a" || password != "b" {
 			err = oauth2.ErrUnauthorizedClient
+			return
 		}
+		openID = "xxxx"
 		return
 	}
+
+	srv.VerifyScope = func(scopes []string) (err error) {
+		// err = oauth2.ErrInvalidScope
+		return
+	}
+
 	srv.Init()
 
 	// =============Http Default=============
