@@ -42,10 +42,10 @@ func main() {
 		code = oauth2.RandomCode()
 		return
 	}
-	srv.VerifyAuthorization = func(clientID, redirectURI string) (err error) {
+	srv.VerifyRedirectURI = func(clientID, redirectURI string) (err error) {
 		fmt.Println(clientID)
 		fmt.Println(redirectURI)
-		//err = oauth2.ErrUnauthorizedClient
+		// err = oauth2.ErrInvalidRedirectURI
 		return
 	}
 
@@ -55,6 +55,11 @@ func main() {
 			return
 		}
 		openID = "xxxx"
+		return
+	}
+
+	srv.VerifyScope = func(scopes []string) (err error) {
+		// err = oauth2.ErrInvalidScope
 		return
 	}
 

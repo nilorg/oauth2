@@ -10,14 +10,14 @@ import (
 
 // Server OAuth2Server
 type Server struct {
-	VerifyClient        VerifyClientFunc
-	VerifyScope         VerifyScopeFunc
-	VerifyPassword      VerifyPasswordFunc
-	VerifyAuthorization VerifyAuthorizationFunc
-	GenerateCode        GenerateCodeFunc
-	VerifyCode          VerifyCodeFunc
-	Log                 Logger
-	JwtIssuer           string
+	VerifyClient      VerifyClientFunc
+	VerifyScope       VerifyScopeFunc
+	VerifyPassword    VerifyPasswordFunc
+	VerifyRedirectURI VerifyRedirectURIFunc
+	GenerateCode      GenerateCodeFunc
+	VerifyCode        VerifyCodeFunc
+	Log               Logger
+	JwtIssuer         string
 }
 
 // NewServer 创建服务器
@@ -36,14 +36,17 @@ func (srv *Server) Init() {
 	if srv.VerifyPassword == nil {
 		panic(ErrVerifyPasswordFuncNil)
 	}
-	if srv.VerifyAuthorization == nil {
-		panic(ErrVerifyAuthorizationFuncNil)
+	if srv.VerifyRedirectURI == nil {
+		panic(ErrVerifyRedirectURIFuncNil)
 	}
 	if srv.GenerateCode == nil {
 		panic(ErrGenerateCodeFuncNil)
 	}
 	if srv.VerifyCode == nil {
 		panic(ErrVerifyCodeFuncNil)
+	}
+	if srv.VerifyScope == nil {
+		panic(ErrVerifyScopeFuncNil)
 	}
 }
 
@@ -52,16 +55,21 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// 判断参数
 	responseType := r.FormValue(ResponseTypeKey)
 	clientID := r.FormValue(ClientIDKey)
+	scope := r.FormValue(ScopeKey)
+	state := r.FormValue(StateKey)
 	redirectURIStr := r.FormValue(RedirectURIKey)
 	redirectURI, err := url.Parse(redirectURIStr)
 	if err != nil {
 		WriterError(w, ErrInvalidRequest)
 		return
 	}
-	scope := r.FormValue(ScopeKey)
-	state := r.FormValue(StateKey)
 	if responseType == "" || clientID == "" {
 		RedirectError(w, r, redirectURI, ErrInvalidRequest)
+		return
+	}
+
+	err = srv.VerifyRedirectURI(clientID, redirectURI.String())
+	if err != nil {
 		return
 	}
 
@@ -192,7 +200,7 @@ func (srv *Server) tokenAuthorizationCode(client *ClientBasic, code, redirectURI
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = client.GenerateAccessToken(srv.JwtIssuer, redirectURI, scope, value.UserID)
+	token, err = client.GenerateAccessToken(srv.JwtIssuer, redirectURI, scope, value.OpenID)
 	return
 }
 
@@ -200,10 +208,6 @@ func (srv *Server) tokenAuthorizationCode(client *ClientBasic, code, redirectURI
 func (srv *Server) authorizeImplicit(clientID, redirectURI, scope, openID string) (token *TokenResponse, err error) {
 	var client *ClientBasic
 	client, err = srv.VerifyClient(clientID)
-	if err != nil {
-		return
-	}
-	err = srv.VerifyAuthorization(clientID, redirectURI)
 	if err != nil {
 		return
 	}

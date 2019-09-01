@@ -18,7 +18,7 @@ type ErrorResponse struct {
 // CodeValue code值
 type CodeValue struct {
 	ClientID    string   `json:"client_id"`
-	UserID      string   `json:"user_id"`
+	OpenID      string   `json:"open_id"`
 	RedirectURI string   `json:"redirect_uri"`
 	Scope       []string `json:"scope"`
 }
