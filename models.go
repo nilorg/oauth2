@@ -1,5 +1,7 @@
 package oauth2
 
+import "encoding/json"
+
 // TokenResponse token response.
 type TokenResponse struct {
 	AccessToken  string      `json:"access_token"`
@@ -21,6 +23,13 @@ type CodeValue struct {
 	OpenID      string   `json:"open_id"`
 	RedirectURI string   `json:"redirect_uri"`
 	Scope       []string `json:"scope"`
+}
+
+func (code *CodeValue) MarshalBinary() ([]byte, error) {
+	return json.Marshal(code)
+}
+func (code *CodeValue) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data,code)
 }
 
 // ClientBasic 客户端基础

@@ -74,7 +74,7 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = srv.VerifyScope(strings.Split(scope, " ")); err != nil {
+	if err = srv.VerifyScope(StringSplit(scope, " ")); err != nil {
 		// ErrInvalidScope
 		RedirectError(w, r, redirectURI, err)
 		return
@@ -137,7 +137,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	scope := r.PostFormValue(ScopeKey)
-	if err = srv.VerifyScope(strings.Split(scope, " ")); err != nil {
+	if err = srv.VerifyScope(StringSplit(scope, " ")); err != nil {
 		// ErrInvalidScope
 		WriterError(w, err)
 		return
@@ -193,7 +193,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 
 // 授权码（authorization-code）
 func (srv *Server) authorizeAuthorizationCode(clientID, redirectURI, scope, openID string) (code string, err error) {
-	return srv.GenerateCode(clientID, openID, redirectURI, strings.Split(scope, " "))
+	return srv.GenerateCode(clientID, openID, redirectURI, StringSplit(scope, " "))
 }
 
 func (srv *Server) tokenAuthorizationCode(client *ClientBasic, code, redirectURI string) (token *TokenResponse, err error) {

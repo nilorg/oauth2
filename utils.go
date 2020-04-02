@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/nilorg/sdk/random"
 )
@@ -78,4 +79,15 @@ func RandomState() string {
 // RandomCode 随机Code
 func RandomCode() string {
 	return random.AZaz09(12)
+}
+
+// StringSplit strings.Split
+func StringSplit(s, sep string) (results []string) {
+	results = strings.Split(s, sep)
+	if len(results) == 1 {
+		if results[0] == "" {
+			results = []string{}
+		}
+	}
+	return
 }
