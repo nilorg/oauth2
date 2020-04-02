@@ -13,12 +13,12 @@ type JwtClaims struct {
 }
 
 // NewJwtClaims ...
-func NewJwtClaims(issuer, clientID, scope, redirectURI, openID string) *JwtClaims {
+func NewJwtClaims(issuer, clientID, scope, openID string) *JwtClaims {
 	currTime := time.Now()
 	return &JwtClaims{
 		StandardClaims: jwt.StandardClaims{
 			// Audience = aud,接收jwt的一方
-			Audience: redirectURI,
+			Audience: clientID,
 			// ExpiresAt = exp
 			ExpiresAt: currTime.Add(AccessTokenExpire).Unix(),
 			// IssuedAt = iat,jwt的签发时间

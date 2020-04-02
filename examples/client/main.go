@@ -31,8 +31,7 @@ func main() {
 	})
 	r.GET("/callback", func(c *gin.Context) {
 		code := c.Query("code")
-		state := c.Query("state")
-		token, err := client.TokenAuthorizationCode(code, c.Request.URL.String(), state)
+		token, err := client.TokenAuthorizationCode(code, c.Request.URL.String())
 		if err != nil {
 			c.JSON(200, gin.H{
 				"message": "callback",
