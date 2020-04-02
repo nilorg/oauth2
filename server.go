@@ -70,11 +70,13 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	err = srv.VerifyRedirectURI(clientID, redirectURI.String())
 	if err != nil {
+		RedirectError(w, r, redirectURI, err)
 		return
 	}
 
 	if err = srv.VerifyScope(strings.Split(scope, " ")); err != nil {
-		RedirectError(w, r, redirectURI, ErrInvalidScope)
+		// ErrInvalidScope
+		RedirectError(w, r, redirectURI, err)
 		return
 	}
 	var openID string
@@ -135,8 +137,9 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	scope := r.PostFormValue(ScopeKey)
-	if err := srv.VerifyScope(strings.Split(scope, " ")); err != nil {
-		WriterError(w, ErrInvalidScope)
+	if err = srv.VerifyScope(strings.Split(scope, " ")); err != nil {
+		// ErrInvalidScope
+		WriterError(w, err)
 		return
 	}
 

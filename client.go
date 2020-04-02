@@ -68,11 +68,11 @@ func (c *Client) AuthorizeAuthorizationCode(w http.ResponseWriter, redirectURI, 
 }
 
 // TokenAuthorizationCode ...
-func (c *Client) TokenAuthorizationCode(code, redirectURI, state string) (token *TokenResponse, err error) {
+// TokenAuthorizationCode(code, redirectURI, state string)
+func (c *Client) TokenAuthorizationCode(code, redirectURI string) (token *TokenResponse, err error) {
 	values := url.Values{
 		CodeKey:        []string{code},
 		RedirectURIKey: []string{redirectURI},
-		StateKey:       []string{state},
 	}
 	return c.token(AuthorizationCodeKey, values)
 }
