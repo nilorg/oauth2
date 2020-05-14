@@ -25,10 +25,12 @@ type CodeValue struct {
 	Scope       []string `json:"scope"`
 }
 
+// MarshalBinary json
 func (code *CodeValue) MarshalBinary() ([]byte, error) {
 	return json.Marshal(code)
 }
 
+// UnmarshalBinary json
 func (code *CodeValue) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, code)
 }

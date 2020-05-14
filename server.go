@@ -19,14 +19,14 @@ type Server struct {
 	RefreshAccessToken  RefreshAccessTokenFunc
 	ParseAccessToken    ParseAccessTokenFunc
 	Log                 Logger
-	JwtIssuer           string
+	Issuer              string
 }
 
 // NewServer 创建服务器
 func NewServer() *Server {
 	return &Server{
-		Log:       &DefaultLogger{},
-		JwtIssuer: DefaultJwtIssuer,
+		Log:    &DefaultLogger{},
+		Issuer: DefaultJwtIssuer,
 	}
 }
 
@@ -210,13 +210,13 @@ func (srv *Server) tokenAuthorizationCode(client *ClientBasic, code, redirectURI
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = srv.GenerateAccessToken(srv.JwtIssuer, redirectURI, scope, value.OpenID)
+	token, err = srv.GenerateAccessToken(srv.Issuer, redirectURI, scope, value.OpenID)
 	return
 }
 
 // 隐藏式（implicit）
 func (srv *Server) authorizeImplicit(clientID, scope, openID string) (token *TokenResponse, err error) {
-	token, err = srv.GenerateAccessToken(srv.JwtIssuer, clientID, scope, openID)
+	token, err = srv.GenerateAccessToken(srv.Issuer, clientID, scope, openID)
 	return
 }
 
@@ -227,12 +227,12 @@ func (srv *Server) tokenResourceOwnerPasswordCredentials(client *ClientBasic, us
 	if err != nil {
 		return
 	}
-	token, err = srv.GenerateAccessToken(srv.JwtIssuer, client.ID, scope, openID)
+	token, err = srv.GenerateAccessToken(srv.Issuer, client.ID, scope, openID)
 	return
 }
 
 // 客户端凭证（client credentials）
 func (srv *Server) tokenClientCredentials(client *ClientBasic, scope string) (token *TokenResponse, err error) {
-	token, err = srv.GenerateAccessToken(srv.JwtIssuer, client.ID, scope, "")
+	token, err = srv.GenerateAccessToken(srv.Issuer, client.ID, scope, "")
 	return
 }

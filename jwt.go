@@ -13,22 +13,22 @@ type JwtClaims struct {
 }
 
 // NewJwtClaims ...
-func NewJwtClaims(issuer, clientID, scope, openID string) *JwtClaims {
+func NewJwtClaims(issuer, audience, scope, openID string) *JwtClaims {
 	currTime := time.Now()
 	return &JwtClaims{
 		StandardClaims: jwt.StandardClaims{
-			// Audience = aud,接收jwt的一方
-			Audience: clientID,
-			// ExpiresAt = exp
-			ExpiresAt: currTime.Add(AccessTokenExpire).Unix(),
-			// IssuedAt = iat,jwt的签发时间
-			IssuedAt: currTime.Unix(),
-			// Issuer = iss,jwt签发者
+			// Issuer = iss,令牌颁发者。它表示该令牌是由谁创建的
 			Issuer: issuer,
-			// NotBefore = nbf,定义在什么时间之前，该jwt都是不可用的
-			NotBefore: currTime.Unix(),
-			// Subject = sub,jwt所面向的用户
+			// Subject = sub,令牌的主体。它表示该令牌是关于谁的
 			Subject: openID,
+			// Audience = aud,令牌的受众。它表示令牌的接收者
+			Audience: audience,
+			// ExpiresAt = exp,令牌的过期时间戳。它表示令牌将在何时过期
+			ExpiresAt: currTime.Add(AccessTokenExpire).Unix(),
+			// NotBefore = nbf,令牌的生效时的时间戳。它表示令牌从什么时候开始生效
+			NotBefore: currTime.Unix(),
+			// IssuedAt = iat,令牌颁发时的时间戳。它表示令牌是何时被创建的
+			IssuedAt: currTime.Unix(),
 		},
 		Scope: scope,
 	}
