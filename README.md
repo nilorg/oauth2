@@ -17,8 +17,8 @@ import "github.com/nilorg/oauth2"
 
 # 文档参考
 1. [《理解OAuth 2.0》阮一峰](http://www.ruanyifeng.com/blog/2014/05/oauth_2_0.html)
-2. [《RFC 6749》](http://www.rfcreader.com/#rfc6749)
-
+2. [《RFC 6749》](https://tools.ietf.org/html/rfc6749) | [《RFC 6749》](http://www.rfcreader.com/#rfc6749)
+3. [《OAuth 2.0 Device Authorization Grant(RFC8628)》](https://tools.ietf.org/html/rfc8628)
 ### AuthorizationCode
 授权码模式（authorization code）是功能最完整、流程最严密的授权模式。
 
@@ -43,6 +43,9 @@ import "github.com/nilorg/oauth2"
 严格地说，客户端模式并不属于OAuth框架所要解决的问题。
 
 在这种模式中，用户直接向客户端注册，客户端以自己的名义要求"服务提供商"提供服务，其实不存在授权问题。
+
+### DeviceCode
+设备模式（Device Code）
 
 # Server
 

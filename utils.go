@@ -2,6 +2,7 @@ package oauth2
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -13,8 +14,12 @@ import (
 func RequestClientBasic(r *http.Request) (basic *ClientBasic, err error) {
 	username, password, ok := r.BasicAuth()
 	if !ok {
-		err = ErrInvalidClient
-		return
+		username = r.PostFormValue("client_id")
+		password = r.PostFormValue("client_secret")
+		if username == "" || password == "" {
+			err = ErrInvalidClient
+			return
+		}
 	}
 	basic = &ClientBasic{
 		ID:     username,
@@ -79,6 +84,16 @@ func RandomState() string {
 // RandomCode 随机Code
 func RandomCode() string {
 	return random.AZaz09(12)
+}
+
+// RandomDeviceCode 随机DeviceCode
+func RandomDeviceCode() string {
+	return random.AZaz09(32)
+}
+
+// RandomUserCode 随机用户code
+func RandomUserCode() string {
+	return fmt.Sprintf("%s-%s", random.Number(3), random.Number(3))
 }
 
 // StringSplit strings.Split

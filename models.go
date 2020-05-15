@@ -12,6 +12,17 @@ type TokenResponse struct {
 	Scope        string      `json:"scope,omitempty"`
 }
 
+// DeviceAuthorizationResponse Device Authorization Response.
+// https://tools.ietf.org/html/rfc8628#section-3.2
+type DeviceAuthorizationResponse struct {
+	DeviceCode            string `json:"device_code"`
+	UserCode              string `json:"user_code"`
+	VerificationURI       string `json:"verification_uri"`
+	VerificationURIQrcode string `json:"verification_uri_qrcode,omitempty"`
+	ExpiresIn             int64  `json:"expires_in"`
+	Interval              int    `json:"interval"`
+}
+
 // ErrorResponse error response.
 type ErrorResponse struct {
 	Error string `json:"error"`
@@ -32,6 +43,25 @@ func (code *CodeValue) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary json
 func (code *CodeValue) UnmarshalBinary(data []byte) error {
+	return json.Unmarshal(data, code)
+}
+
+// DeviceCodeValue device_code值
+type DeviceCodeValue struct {
+	ClientID   string   `json:"client_id"`
+	OpenID     string   `json:"open_id"`
+	DeviceCode string   `json:"device_code"`
+	UserCode   string   `json:"user_code"`
+	Scope      []string `json:"scope"`
+}
+
+// MarshalBinary json
+func (code *DeviceCodeValue) MarshalBinary() ([]byte, error) {
+	return json.Marshal(code)
+}
+
+// UnmarshalBinary json
+func (code *DeviceCodeValue) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, code)
 }
 

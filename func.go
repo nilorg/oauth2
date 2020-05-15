@@ -25,11 +25,17 @@ type VerifyScopeFunc func(scope []string) (err error)
 // GenerateAccessTokenFunc 生成AccessToken委托
 type GenerateAccessTokenFunc func(issuer, clientID, scope, openID string) (token *TokenResponse, err error)
 
+// GenerateDeviceAuthorizationFunc 生成设备授权
+type GenerateDeviceAuthorizationFunc func(issuer, verificationURI, clientID, scope string) (resp *DeviceAuthorizationResponse, err error)
+
 // ParseAccessTokenFunc 解析AccessToken为JwtClaims委托
 type ParseAccessTokenFunc func(accessToken string) (claims *JwtClaims, err error)
 
 // RefreshAccessTokenFunc 刷新AccessToken委托
 type RefreshAccessTokenFunc func(clientID, refreshToken string) (token *TokenResponse, err error)
+
+// VerifyDeviceCodeFunc 验证DeviceCode委托
+type VerifyDeviceCodeFunc func(deviceCode, clientID string) (value *DeviceCodeValue, err error)
 
 // NewDefaultGenerateAccessToken 创建默认生成AccessToken方法
 func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc {

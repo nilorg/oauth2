@@ -26,6 +26,14 @@ var (
 	ErrServerError = errors.New("server_error")
 	// ErrInvalidClient 无效的客户
 	ErrInvalidClient = errors.New("invalid_client")
+	// ErrExpiredToken 过期的令牌
+	ErrExpiredToken = errors.New("expired_token")
+	// ErrAuthorizationPending 授权之前
+	// https://tools.ietf.org/html/rfc8628#section-3.5
+	ErrAuthorizationPending = errors.New("authorization_pending")
+	// ErrSlowDown 慢下来
+	// https://tools.ietf.org/html/rfc8628#section-3.5
+	ErrSlowDown = errors.New("slow_down")
 )
 
 var (
@@ -43,6 +51,10 @@ var (
 	ErrVerifyScopeFuncNil = errors.New("OAuth2 Server VerifyScope Is Nil")
 	// ErrGenerateAccessTokenFuncNil ...
 	ErrGenerateAccessTokenFuncNil = errors.New("OAuth2 Server GenerateAccessTokenFunc Is Nil")
+	// ErrGenerateDeviceAuthorizationFuncNil ...
+	ErrGenerateDeviceAuthorizationFuncNil = errors.New("OAuth2 Server GenerateDeviceAuthorizationFunc Is Nil")
+	// ErrVerifyDeviceCodeFuncNil ...
+	ErrVerifyDeviceCodeFuncNil = errors.New("OAuth2 Server ErrVerifyDeviceCodeFunc Is Nil")
 	// ErrRefreshAccessTokenFuncNil ...
 	ErrRefreshAccessTokenFuncNil = errors.New("OAuth2 Server ErrRefreshAccessTokenFuncNil Is Nil")
 	// ErrParseAccessTokenFuncNil ...
@@ -75,18 +87,24 @@ var (
 		ErrTemporarilyUnavailable.Error():  ErrTemporarilyUnavailable,
 		ErrServerError.Error():             ErrServerError,
 		ErrInvalidClient.Error():           ErrInvalidClient,
+		ErrExpiredToken.Error():            ErrExpiredToken,
+		ErrAuthorizationPending.Error():    ErrAuthorizationPending,
+		ErrSlowDown.Error():                ErrSlowDown,
 	}
 	// ErrStatusCodes ...
 	ErrStatusCodes = map[error]int{
-		ErrInvalidRequest:          http.StatusBadRequest,
-		ErrUnauthorizedClient:      http.StatusUnauthorized,
-		ErrAccessDenied:            http.StatusForbidden,
-		ErrUnsupportedResponseType: http.StatusUnauthorized,
-		ErrInvalidScope:            http.StatusBadRequest,
-		ErrServerError:             http.StatusInternalServerError,
-		ErrTemporarilyUnavailable:  http.StatusServiceUnavailable,
-		ErrInvalidClient:           http.StatusUnauthorized,
-		ErrInvalidGrant:            http.StatusUnauthorized,
-		ErrUnsupportedGrantType:    http.StatusUnauthorized,
+		ErrInvalidRequest:          http.StatusBadRequest,          // 400
+		ErrUnauthorizedClient:      http.StatusUnauthorized,        // 401
+		ErrAccessDenied:            http.StatusForbidden,           // 403
+		ErrUnsupportedResponseType: http.StatusUnauthorized,        // 401
+		ErrInvalidScope:            http.StatusBadRequest,          // 400
+		ErrServerError:             http.StatusInternalServerError, // 400
+		ErrTemporarilyUnavailable:  http.StatusServiceUnavailable,  // 503
+		ErrInvalidClient:           http.StatusUnauthorized,        // 401
+		ErrInvalidGrant:            http.StatusUnauthorized,        // 401
+		ErrUnsupportedGrantType:    http.StatusUnauthorized,        // 401
+		ErrExpiredToken:            http.StatusUnauthorized,        // 401
+		ErrAuthorizationPending:    http.StatusUnauthorized,        // 401
+		ErrSlowDown:                http.StatusBadRequest,          // 400
 	}
 )

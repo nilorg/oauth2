@@ -11,13 +11,14 @@ import (
 
 // Client oauth2 client
 type Client struct {
-	Log                   Logger
-	httpClient            *http.Client
-	ServerBaseURL         string
-	AuthorizationEndpoint string
-	TokenEndpoint         string
-	ID                    string
-	Secret                string
+	Log                         Logger
+	httpClient                  *http.Client
+	ServerBaseURL               string
+	AuthorizationEndpoint       string
+	TokenEndpoint               string
+	DeviceAuthorizationEndpoint string
+	ID                          string
+	Secret                      string
 }
 
 // NewClient new oauth2 client
@@ -27,13 +28,14 @@ func NewClient(serverBaseURL, id, secret string) *Client {
 		return http.ErrUseLastResponse
 	}
 	return &Client{
-		Log:                   &DefaultLogger{},
-		httpClient:            httpclient,
-		ServerBaseURL:         serverBaseURL,
-		AuthorizationEndpoint: "/authorize",
-		TokenEndpoint:         "/token",
-		ID:                    id,
-		Secret:                secret,
+		Log:                         &DefaultLogger{},
+		httpClient:                  httpclient,
+		ServerBaseURL:               serverBaseURL,
+		AuthorizationEndpoint:       "/authorize",
+		TokenEndpoint:               "/token",
+		DeviceAuthorizationEndpoint: "/device_authorization",
+		ID:                          id,
+		Secret:                      secret,
 	}
 }
 
@@ -80,6 +82,28 @@ func (c *Client) TokenAuthorizationCode(code, redirectURI string) (token *TokenR
 // AuthorizeImplicit ...
 func (c *Client) AuthorizeImplicit(w http.ResponseWriter, redirectURI, scope, state string) (err error) {
 	return c.authorize(w, TokenKey, redirectURI, scope, state)
+}
+
+// DeviceAuthorization ...
+func (c *Client) DeviceAuthorization(w http.ResponseWriter, scope string) (err error) {
+	var uri *url.URL
+	uri, err = url.Parse(c.ServerBaseURL + c.DeviceAuthorizationEndpoint)
+	if err != nil {
+		return
+	}
+	query := uri.Query()
+	query.Set(ClientIDKey, c.ID)
+	query.Set(ScopeKey, scope)
+	uri.RawQuery = query.Encode()
+	var resp *http.Response
+	resp, err = c.httpClient.Get(uri.String())
+	if err != nil {
+		return
+	}
+	w.WriteHeader(resp.StatusCode)
+	defer resp.Body.Close()
+	_, err = io.Copy(w, resp.Body)
+	return
 }
 
 func (c *Client) token(grantType string, values url.Values) (token *TokenResponse, err error) {
@@ -147,4 +171,13 @@ func (c *Client) RefreshToken(refreshToken string) (model *TokenResponse, err er
 		RefreshTokenKey: []string{refreshToken},
 	}
 	return c.token(RefreshTokenKey, values)
+}
+
+// TokenDeviceCode ...
+func (c *Client) TokenDeviceCode(deviceCode string) (model *TokenResponse, err error) {
+	values := url.Values{
+		ClientIDKey:   []string{c.ID},
+		DeviceCodeKey: []string{deviceCode},
+	}
+	return c.token(DeviceCodeKey, values)
 }

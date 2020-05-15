@@ -16,14 +16,14 @@ var (
 
 func main() {
 	srv := oauth2.NewServer()
-	srv.VerifyClient = func(clientID string) (basic *oauth2.ClientBasic, err error) {
-		pwd, ok := clients[clientID]
+	srv.VerifyClient = func(basic *oauth2.ClientBasic) (err error) {
+		pwd, ok := clients[basic.ID]
 		if !ok {
 			err = oauth2.ErrInvalidClient
 			return
 		}
 		basic = &oauth2.ClientBasic{
-			ID:     clientID,
+			ID:     basic.ID,
 			Secret: pwd,
 		}
 		return
@@ -63,6 +63,27 @@ func main() {
 		return
 	}
 
+	srv.GenerateAccessToken = oauth2.NewDefaultGenerateAccessToken([]byte("xxxxx"))
+	srv.RefreshAccessToken = oauth2.NewDefaultRefreshAccessToken([]byte("xxxxx"))
+	srv.ParseAccessToken = oauth2.NewDefaultParseAccessToken([]byte("xxxxx"))
+
+	srv.GenerateDeviceAuthorization = func(issuer, verificationURI, clientID, scope string) (resp *oauth2.DeviceAuthorizationResponse, err error) {
+		resp = &oauth2.DeviceAuthorizationResponse{
+			DeviceCode:            oauth2.RandomCode(),
+			UserCode:              oauth2.RandomUserCode(),
+			VerificationURI:       verificationURI,
+			VerificationURIQrcode: "",
+			ExpiresIn:             0,
+			Interval:              5,
+		}
+		return
+	}
+
+	srv.VerifyDeviceCode = func(deviceCode, clientID string) (value *oauth2.DeviceCodeValue, err error) {
+		// err = oauth2.ErrAuthorizationPending
+		return
+	}
+
 	srv.Init()
 
 	// =============Http Default=============
@@ -81,6 +102,9 @@ func main() {
 		})
 		oauth2Group.POST("/token", func(c *gin.Context) {
 			srv.HandleToken(c.Writer, c.Request)
+		})
+		oauth2Group.POST("/device_authorization", func(c *gin.Context) {
+			srv.HandleDeviceAuthorization(c.Writer, c.Request)
 		})
 	}
 
