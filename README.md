@@ -49,7 +49,7 @@ import "github.com/nilorg/oauth2"
 设备模式（Device Code）
 
 ### TokenIntrospection
-省内端点（Token Introspection）
+内省端点（Token Introspection）
 
 # Server
 
