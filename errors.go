@@ -34,6 +34,9 @@ var (
 	// ErrSlowDown 慢下来
 	// https://tools.ietf.org/html/rfc8628#section-3.5
 	ErrSlowDown = errors.New("slow_down")
+	// ErrUnsupportedTokenType 不支持的令牌类型
+	// https://tools.ietf.org/html/rfc7009#section-4.1.1
+	ErrUnsupportedTokenType = errors.New("unsupported_token_type")
 )
 
 var (
@@ -59,6 +62,8 @@ var (
 	ErrRefreshAccessTokenFuncNil = errors.New("OAuth2 Server ErrRefreshAccessTokenFuncNil Is Nil")
 	// ErrParseAccessTokenFuncNil ...
 	ErrParseAccessTokenFuncNil = errors.New("OAuth2 Server ParseAccessTokenFunc Is Nil")
+	// ErrVerifyIntrospectionTokenFuncNil ...
+	ErrVerifyIntrospectionTokenFuncNil = errors.New("OAuth2 Server VerifyIntrospectionToken Is Nil")
 	// ErrInvalidAccessToken 无效的访问令牌
 	ErrInvalidAccessToken = errors.New("invalid_access_token")
 	// ErrInvalidRedirectURI 无效的RedirectURI
@@ -90,6 +95,7 @@ var (
 		ErrExpiredToken.Error():            ErrExpiredToken,
 		ErrAuthorizationPending.Error():    ErrAuthorizationPending,
 		ErrSlowDown.Error():                ErrSlowDown,
+		ErrUnsupportedTokenType.Error():    ErrUnsupportedTokenType,
 	}
 	// ErrStatusCodes ...
 	ErrStatusCodes = map[error]int{
@@ -105,6 +111,7 @@ var (
 		ErrUnsupportedGrantType:    http.StatusUnauthorized,        // 401
 		ErrExpiredToken:            http.StatusUnauthorized,        // 401
 		ErrAuthorizationPending:    http.StatusUnauthorized,        // 401
-		ErrSlowDown:                http.StatusBadRequest,          // 400
+		ErrSlowDown:                http.StatusBadRequest,          // 400 https://tools.ietf.org/html/rfc6749#section-5.2
+		ErrUnsupportedTokenType:    http.StatusServiceUnavailable,  // 503 https://tools.ietf.org/html/rfc7009#section-2.2.1
 	}
 )

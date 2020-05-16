@@ -20,21 +20,24 @@ type Server struct {
 	VerifyDeviceCode            VerifyDeviceCodeFunc
 	RefreshAccessToken          RefreshAccessTokenFunc
 	ParseAccessToken            ParseAccessTokenFunc
-	Log                         Logger
-	Issuer                      string
-	DeviceVerificationURI       string
+	VerifyIntrospectionToken    VerifyIntrospectionTokenFunc
+	opts                        ServerOptions
 }
 
 // NewServer 创建服务器
-func NewServer() *Server {
+func NewServer(opts ...ServerOption) *Server {
+	options := newServerOptions(opts...)
 	return &Server{
-		Log:    &DefaultLogger{},
-		Issuer: DefaultJwtIssuer,
+		opts: options,
 	}
 }
 
 // Init 初始化
-func (srv *Server) Init() {
+func (srv *Server) Init(opts ...ServerOption) {
+	for _, o := range opts {
+		o(&srv.opts)
+	}
+
 	if srv.VerifyClient == nil {
 		panic(ErrVerifyClientFuncNil)
 	}
@@ -56,17 +59,25 @@ func (srv *Server) Init() {
 	if srv.GenerateAccessToken == nil {
 		panic(ErrGenerateAccessTokenFuncNil)
 	}
-	if srv.GenerateDeviceAuthorization == nil {
-		panic(ErrGenerateDeviceAuthorizationFuncNil)
-	}
-	if srv.VerifyDeviceCode == nil {
-		panic(ErrVerifyDeviceCodeFuncNil)
-	}
 	if srv.RefreshAccessToken == nil {
 		panic(ErrRefreshAccessTokenFuncNil)
 	}
 	if srv.ParseAccessToken == nil {
 		panic(ErrParseAccessTokenFuncNil)
+	}
+
+	if srv.opts.DeviceAuthorizationEndpointEnabled {
+		if srv.GenerateDeviceAuthorization == nil {
+			panic(ErrGenerateDeviceAuthorizationFuncNil)
+		}
+		if srv.VerifyDeviceCode == nil {
+			panic(ErrVerifyDeviceCodeFuncNil)
+		}
+	}
+	if srv.opts.IntrospectEndpointEnabled {
+		if srv.VerifyIntrospectionToken == nil {
+			panic(ErrVerifyIntrospectionTokenFuncNil)
+		}
 	}
 }
 
@@ -141,6 +152,47 @@ func (srv *Server) HandleDeviceAuthorization(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	resp, err := srv.authorizeDeviceCode(clientID, scope)
+	if err != nil {
+		WriterError(w, err)
+	} else {
+		WriterJSON(w, resp)
+	}
+}
+
+// HandleTokenIntrospection 处理内省端点
+// https://tools.ietf.org/html/rfc7662#section-2.1
+func (srv *Server) HandleTokenIntrospection(w http.ResponseWriter, r *http.Request) {
+	var reqClientBasic *ClientBasic
+	var err error
+	reqClientBasic, err = RequestClientBasic(r)
+	if err != nil {
+		WriterError(w, err)
+		return
+	}
+	err = srv.VerifyClient(reqClientBasic)
+	if err != nil {
+		WriterError(w, err)
+		return
+	}
+
+	// 判断参数
+	clientID := r.FormValue(ClientIDKey)
+	if clientID == "" {
+		WriterError(w, ErrInvalidRequest)
+		return
+	}
+	if reqClientBasic.ID != clientID {
+		WriterError(w, ErrInvalidRequest)
+		return
+	}
+	token := r.FormValue(TokenKey)
+	tokenTypeHint := r.FormValue(TokenTypeHintKey)
+	if tokenTypeHint != "" && tokenTypeHint != AccessTokenKey && tokenTypeHint != RefreshTokenKey {
+		WriterError(w, ErrUnsupportedTokenType)
+		return
+	}
+
+	resp, err := srv.VerifyIntrospectionToken(token, clientID, tokenTypeHint)
 	if err != nil {
 		WriterError(w, err)
 	} else {
@@ -251,19 +303,19 @@ func (srv *Server) tokenAuthorizationCode(client *ClientBasic, clientID, code, r
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = srv.GenerateAccessToken(srv.Issuer, redirectURI, scope, value.OpenID)
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, redirectURI, scope, value.OpenID)
 	return
 }
 
 // 隐藏式（implicit）
 func (srv *Server) authorizeImplicit(clientID, scope, openID string) (token *TokenResponse, err error) {
-	token, err = srv.GenerateAccessToken(srv.Issuer, clientID, scope, openID)
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, clientID, scope, openID)
 	return
 }
 
 // 设备模式（Device Code）
 func (srv *Server) authorizeDeviceCode(clientID, scope string) (resp *DeviceAuthorizationResponse, err error) {
-	resp, err = srv.GenerateDeviceAuthorization(srv.Issuer, srv.DeviceVerificationURI, clientID, scope)
+	resp, err = srv.GenerateDeviceAuthorization(srv.opts.Issuer, srv.opts.DeviceVerificationURI, clientID, scope)
 	return
 }
 
@@ -274,13 +326,13 @@ func (srv *Server) tokenResourceOwnerPasswordCredentials(client *ClientBasic, us
 	if err != nil {
 		return
 	}
-	token, err = srv.GenerateAccessToken(srv.Issuer, client.ID, scope, openID)
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, openID)
 	return
 }
 
 // 客户端凭证（client credentials）
 func (srv *Server) tokenClientCredentials(client *ClientBasic, scope string) (token *TokenResponse, err error) {
-	token, err = srv.GenerateAccessToken(srv.Issuer, client.ID, scope, "")
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, "")
 	return
 }
 
@@ -296,6 +348,6 @@ func (srv *Server) tokenDeviceCode(client *ClientBasic, clientID, deviceCode str
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = srv.GenerateAccessToken(srv.Issuer, client.ID, scope, value.OpenID)
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, value.OpenID)
 	return
 }

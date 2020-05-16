@@ -37,6 +37,9 @@ type RefreshAccessTokenFunc func(clientID, refreshToken string) (token *TokenRes
 // VerifyDeviceCodeFunc 验证DeviceCode委托
 type VerifyDeviceCodeFunc func(deviceCode, clientID string) (value *DeviceCodeValue, err error)
 
+// VerifyIntrospectionTokenFunc 验证IntrospectionToken委托
+type VerifyIntrospectionTokenFunc func(token, clientID string, tokenTypeHint ...string) (resp *IntrospectionResponse, err error)
+
 // NewDefaultGenerateAccessToken 创建默认生成AccessToken方法
 func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc {
 	return func(issuer, clientID, scope, openID string) (token *TokenResponse, err error) {

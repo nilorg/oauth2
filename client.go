@@ -16,6 +16,7 @@ type Client struct {
 	ServerBaseURL               string
 	AuthorizationEndpoint       string
 	TokenEndpoint               string
+	IntrospectEndpoint          string
 	DeviceAuthorizationEndpoint string
 	ID                          string
 	Secret                      string
@@ -34,6 +35,7 @@ func NewClient(serverBaseURL, id, secret string) *Client {
 		AuthorizationEndpoint:       "/authorize",
 		TokenEndpoint:               "/token",
 		DeviceAuthorizationEndpoint: "/device_authorization",
+		IntrospectEndpoint:          "/introspect",
 		ID:                          id,
 		Secret:                      secret,
 	}
@@ -180,4 +182,53 @@ func (c *Client) TokenDeviceCode(deviceCode string) (model *TokenResponse, err e
 		DeviceCodeKey: []string{deviceCode},
 	}
 	return c.token(DeviceCodeKey, values)
+}
+
+// TokenIntrospect ...
+func (c *Client) TokenIntrospect(token string, tokenTypeHint ...string) (introspection *IntrospectionResponse, err error) {
+	var uri *url.URL
+	uri, err = url.Parse(c.ServerBaseURL + c.IntrospectEndpoint)
+	if err != nil {
+		return
+	}
+	values := url.Values{
+		TokenKey: []string{token},
+	}
+	if len(tokenTypeHint) > 0 {
+		if tokenTypeHint[0] != AccessTokenKey && tokenTypeHint[0] != RefreshTokenKey {
+			err = ErrUnsupportedTokenType
+			return
+		}
+		values.Set(TokenTypeHintKey, tokenTypeHint[0])
+	}
+	var req *http.Request
+	req, err = http.NewRequest(http.MethodPost, uri.String(), strings.NewReader(values.Encode()))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(c.ID, c.Secret)
+	var resp *http.Response
+	resp, err = c.httpClient.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	var body []byte
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	if resp.StatusCode != http.StatusOK || strings.Index(string(body), ErrorKey) > -1 {
+		errModel := ErrorResponse{}
+		err = json.Unmarshal(body, &errModel)
+		if err != nil {
+			return
+		}
+		err = Errors[errModel.Error]
+	} else {
+		introspection = &IntrospectionResponse{}
+		err = json.Unmarshal(body, introspection)
+	}
+	return
 }

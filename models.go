@@ -23,6 +23,19 @@ type DeviceAuthorizationResponse struct {
 	Interval              int    `json:"interval"`
 }
 
+// IntrospectionResponse Introspection Response.
+// https://tools.ietf.org/html/rfc7662#section-2.2
+type IntrospectionResponse struct {
+	Active   bool   `json:"active"`
+	ClientID string `json:"client_id,omitempty"`
+	Username string `json:"username,omitempty"`
+	Scope    string `json:"scope,omitempty"`
+	Sub      string `json:"sub,omitempty"`
+	Aud      string `json:"aud,omitempty"`
+	Iss      int64  `json:"iss,omitempty"`
+	Exp      int64  `json:"exp,omitempty"`
+}
+
 // ErrorResponse error response.
 type ErrorResponse struct {
 	Error string `json:"error"`
