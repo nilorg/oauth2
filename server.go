@@ -21,6 +21,7 @@ type Server struct {
 	RefreshAccessToken          RefreshAccessTokenFunc
 	ParseAccessToken            ParseAccessTokenFunc
 	VerifyIntrospectionToken    VerifyIntrospectionTokenFunc
+	TokenRevocation             TokenRevocationFunc
 	opts                        ServerOptions
 }
 
@@ -77,6 +78,11 @@ func (srv *Server) Init(opts ...ServerOption) {
 	if srv.opts.IntrospectEndpointEnabled {
 		if srv.VerifyIntrospectionToken == nil {
 			panic(ErrVerifyIntrospectionTokenFuncNil)
+		}
+	}
+	if srv.opts.TokenRevocationEnabled {
+		if srv.TokenRevocation == nil {
+			panic(ErrTokenRevocationFuncNil)
 		}
 	}
 }
@@ -191,13 +197,49 @@ func (srv *Server) HandleTokenIntrospection(w http.ResponseWriter, r *http.Reque
 		WriterError(w, ErrUnsupportedTokenType)
 		return
 	}
-
-	resp, err := srv.VerifyIntrospectionToken(token, clientID, tokenTypeHint)
+	var resp *IntrospectionResponse
+	resp, err = srv.VerifyIntrospectionToken(token, clientID, tokenTypeHint)
 	if err != nil {
 		WriterError(w, err)
 	} else {
 		WriterJSON(w, resp)
 	}
+}
+
+// HandleTokenRevocation 处理Token销毁
+// https://tools.ietf.org/html/rfc7009
+func (srv *Server) HandleTokenRevocation(w http.ResponseWriter, r *http.Request) {
+	var reqClientBasic *ClientBasic
+	var err error
+	reqClientBasic, err = RequestClientBasic(r)
+	if err != nil {
+		WriterError(w, err)
+		return
+	}
+	err = srv.VerifyClient(reqClientBasic)
+	if err != nil {
+		WriterError(w, err)
+		return
+	}
+
+	// 判断参数
+	clientID := r.FormValue(ClientIDKey)
+	if clientID == "" {
+		WriterError(w, ErrInvalidRequest)
+		return
+	}
+	if reqClientBasic.ID != clientID {
+		WriterError(w, ErrInvalidRequest)
+		return
+	}
+	token := r.FormValue(TokenKey)
+	tokenTypeHint := r.FormValue(TokenTypeHintKey)
+	if tokenTypeHint != "" && tokenTypeHint != AccessTokenKey && tokenTypeHint != RefreshTokenKey {
+		WriterError(w, ErrUnsupportedTokenType)
+		return
+	}
+	srv.TokenRevocation(token, clientID, tokenTypeHint)
+	w.WriteHeader(http.StatusOK)
 }
 
 // HandleToken 处理Token

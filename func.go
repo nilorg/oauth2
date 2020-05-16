@@ -40,6 +40,10 @@ type VerifyDeviceCodeFunc func(deviceCode, clientID string) (value *DeviceCodeVa
 // VerifyIntrospectionTokenFunc 验证IntrospectionToken委托
 type VerifyIntrospectionTokenFunc func(token, clientID string, tokenTypeHint ...string) (resp *IntrospectionResponse, err error)
 
+// TokenRevocationFunc Token撤销委托
+// https://tools.ietf.org/html/rfc7009#section-2.2
+type TokenRevocationFunc func(token, clientID string, tokenTypeHint ...string)
+
 // NewDefaultGenerateAccessToken 创建默认生成AccessToken方法
 func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc {
 	return func(issuer, clientID, scope, openID string) (token *TokenResponse, err error) {

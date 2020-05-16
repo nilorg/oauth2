@@ -7,6 +7,7 @@ type ServerOptions struct {
 	DeviceAuthorizationEndpointEnabled bool   // https://tools.ietf.org/html/rfc8628
 	DeviceVerificationURI              string // https://tools.ietf.org/html/rfc8628#section-3.2
 	IntrospectEndpointEnabled          bool   // https://tools.ietf.org/html/rfc7662
+	TokenRevocationEnabled             bool   // https://tools.ietf.org/html/rfc7009
 }
 
 // ServerOption 为可选参数赋值的函数
@@ -47,6 +48,13 @@ func ServerIntrospectEndpointEnabled(introspectEndpointEnabled bool) ServerOptio
 	}
 }
 
+// ServerTokenRevocationEnabled ...
+func ServerTokenRevocationEnabled(tokenRevocationEnabled bool) ServerOption {
+	return func(o *ServerOptions) {
+		o.TokenRevocationEnabled = tokenRevocationEnabled
+	}
+}
+
 // newServerOptions 创建server可选参数
 func newServerOptions(opts ...ServerOption) ServerOptions {
 	opt := ServerOptions{
@@ -54,6 +62,7 @@ func newServerOptions(opts ...ServerOption) ServerOptions {
 		Issuer:                             DefaultJwtIssuer,
 		DeviceAuthorizationEndpointEnabled: false,
 		IntrospectEndpointEnabled:          false,
+		TokenRevocationEnabled:             false,
 	}
 	for _, o := range opts {
 		o(&opt)

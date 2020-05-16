@@ -18,6 +18,7 @@ type Client struct {
 	TokenEndpoint               string
 	IntrospectEndpoint          string
 	DeviceAuthorizationEndpoint string
+	TokenRevocationEndpoint     string
 	ID                          string
 	Secret                      string
 }
@@ -186,11 +187,6 @@ func (c *Client) TokenDeviceCode(deviceCode string) (model *TokenResponse, err e
 
 // TokenIntrospect ...
 func (c *Client) TokenIntrospect(token string, tokenTypeHint ...string) (introspection *IntrospectionResponse, err error) {
-	var uri *url.URL
-	uri, err = url.Parse(c.ServerBaseURL + c.IntrospectEndpoint)
-	if err != nil {
-		return
-	}
 	values := url.Values{
 		TokenKey: []string{token},
 	}
@@ -200,6 +196,33 @@ func (c *Client) TokenIntrospect(token string, tokenTypeHint ...string) (introsp
 			return
 		}
 		values.Set(TokenTypeHintKey, tokenTypeHint[0])
+	}
+	introspection = &IntrospectionResponse{}
+	err = c.do(c.IntrospectEndpoint, values, introspection)
+	return
+}
+
+// TokenRevocation token撤销
+func (c *Client) TokenRevocation(token string, tokenTypeHint ...string) (introspection *IntrospectionResponse, err error) {
+	values := url.Values{
+		TokenKey: []string{token},
+	}
+	if len(tokenTypeHint) > 0 {
+		if tokenTypeHint[0] != AccessTokenKey && tokenTypeHint[0] != RefreshTokenKey {
+			err = ErrUnsupportedTokenType
+			return
+		}
+		values.Set(TokenTypeHintKey, tokenTypeHint[0])
+	}
+	err = c.do(c.TokenRevocationEndpoint, values, nil)
+	return
+}
+
+func (c *Client) do(path string, values url.Values, v interface{}) (err error) {
+	var uri *url.URL
+	uri, err = url.Parse(c.ServerBaseURL + path)
+	if err != nil {
+		return
 	}
 	var req *http.Request
 	req, err = http.NewRequest(http.MethodPost, uri.String(), strings.NewReader(values.Encode()))
@@ -227,8 +250,9 @@ func (c *Client) TokenIntrospect(token string, tokenTypeHint ...string) (introsp
 		}
 		err = Errors[errModel.Error]
 	} else {
-		introspection = &IntrospectionResponse{}
-		err = json.Unmarshal(body, introspection)
+		if v != nil {
+			err = json.Unmarshal(body, v)
+		}
 	}
 	return
 }
