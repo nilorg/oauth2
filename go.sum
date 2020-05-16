@@ -1,4 +1,4 @@
 github.com/dgrijalva/jwt-go v3.2.0+incompatible h1:7qlOGliEKZXTDg6OTjfoBKDXWrumCAMpl/TFQ4/5kLM=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
-github.com/nilorg/sdk v0.0.0-20190818083213-d52976243caf h1:RueXnD1RRiIx8BHlCjy48n1lEA9ArWxL6vO3etNUxwY=
-github.com/nilorg/sdk v0.0.0-20190818083213-d52976243caf/go.mod h1:X1swpPdqguAZaBDoEPyEWHSsJii0YQ1o+3piMv6W3JU=
+github.com/nilorg/sdk v0.0.0-20200405075129-8f922eb1fa90 h1:N4HLrIBWSiJrCrmY+DLT3lx0KXES4DXVOl1MdrvAAFA=
+github.com/nilorg/sdk v0.0.0-20200405075129-8f922eb1fa90/go.mod h1:X1swpPdqguAZaBDoEPyEWHSsJii0YQ1o+3piMv6W3JU=
