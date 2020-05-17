@@ -26,7 +26,7 @@ func TestGenerateToken(t *testing.T) {
 }
 
 func TestParseJwtToken(t *testing.T) {
-	tokenClaims, err := ParseJwtToken("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsib2F1dGgyLWNsaWVudC10ZXN0Il0sImV4cCI6MTU4OTc4OTUyMCwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwIiwibmJmIjoxNTg5NzAzMTIwLCJzdWIiOiJzdWJqZWN0In0.D0h0tKcGf2t7FwE5tkxZ8zTLozUFHfteKFU6tuL3dWA", []byte("test"))
+	tokenClaims, err := ParseHS256JwtToken("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsib2F1dGgyLWNsaWVudC10ZXN0Il0sImV4cCI6MTU4OTc4OTUyMCwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwIiwibmJmIjoxNTg5NzAzMTIwLCJzdWIiOiJzdWJqZWN0In0.D0h0tKcGf2t7FwE5tkxZ8zTLozUFHfteKFU6tuL3dWA", []byte("test"))
 	if err != nil {
 		t.Error(err)
 		return

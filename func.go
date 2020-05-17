@@ -76,7 +76,7 @@ func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc 
 func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 	return func(clientID, refreshToken string) (token *TokenResponse, err error) {
 		refreshTokenClaims := &JwtClaims{}
-		refreshTokenClaims, err = ParseJwtToken(refreshToken, jwtVerifyKey)
+		refreshTokenClaims, err = ParseHS256JwtToken(refreshToken, jwtVerifyKey)
 		if err != nil {
 			return
 		}
@@ -91,7 +91,7 @@ func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 		refreshTokenClaims.ExpiresAt = time.Now().Add(AccessTokenExpire).Unix()
 
 		var tokenClaims *JwtClaims
-		tokenClaims, err = ParseJwtToken(refreshTokenClaims.ID, jwtVerifyKey)
+		tokenClaims, err = ParseHS256JwtToken(refreshTokenClaims.ID, jwtVerifyKey)
 		if err != nil {
 			return
 		}
@@ -122,6 +122,6 @@ func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 // NewDefaultParseAccessToken 创建默认解析AccessToken方法
 func NewDefaultParseAccessToken(jwtVerifyKey []byte) ParseAccessTokenFunc {
 	return func(accessToken string) (claims *JwtClaims, err error) {
-		return ParseJwtToken(accessToken, jwtVerifyKey)
+		return ParseHS256JwtToken(accessToken, jwtVerifyKey)
 	}
 }

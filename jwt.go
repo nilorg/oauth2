@@ -182,7 +182,7 @@ func NewHS256JwtToken(claims *JwtClaims, jwtVerifyKey []byte) (string, error) {
 }
 
 // ParseJwtToken ...
-func ParseJwtToken(token string, jwtVerifyKey []byte) (claims *JwtClaims, err error) {
+func ParseJwtToken(token string, key interface{}) (claims *JwtClaims, err error) {
 	var (
 		tok *jwt.JSONWebToken
 	)
@@ -191,6 +191,11 @@ func ParseJwtToken(token string, jwtVerifyKey []byte) (claims *JwtClaims, err er
 		return
 	}
 	claims = new(JwtClaims)
-	err = tok.Claims(jwtVerifyKey, claims)
+	err = tok.Claims(key, claims)
 	return
+}
+
+// ParseHS256JwtToken ...
+func ParseHS256JwtToken(token string, jwtVerifyKey []byte) (claims *JwtClaims, err error) {
+	return ParseJwtToken(token, jwtVerifyKey)
 }
