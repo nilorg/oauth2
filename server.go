@@ -345,7 +345,7 @@ func (srv *Server) tokenAuthorizationCode(client *ClientBasic, clientID, code, r
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = srv.GenerateAccessToken(srv.opts.Issuer, redirectURI, scope, value.OpenID)
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, value.OpenID)
 	return
 }
 
