@@ -10,6 +10,7 @@ type TokenResponse struct {
 	RefreshToken string      `json:"refresh_token,omitempty"`
 	Data         interface{} `json:"data,omitempty"`
 	Scope        string      `json:"scope,omitempty"`
+	IDToken      string      `json:"id_token,omitempty"` // https://openid.net/specs/openid-connect-core-1_0.html#IDToken
 }
 
 // DeviceAuthorizationResponse Device Authorization Response.
