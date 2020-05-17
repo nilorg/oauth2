@@ -21,6 +21,8 @@ import "github.com/nilorg/oauth2"
 3. [《OAuth 2.0 Device Authorization Grant(RFC8628)》](https://tools.ietf.org/html/rfc8628)
 4. [《OAuth 2.0 Token Introspection(RFC7662)》](https://tools.ietf.org/html/rfc7662)
 5. [《OAuth 2.0 Token Revocation(RFC7009)》](https://tools.ietf.org/html/rfc7009)
+
+
 ### AuthorizationCode
 授权码模式（authorization code）是功能最完整、流程最严密的授权模式。
 
