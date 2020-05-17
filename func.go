@@ -52,6 +52,7 @@ func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc 
 		tokenStr, err = NewHS256JwtClaimsToken(accessJwtClaims, jwtVerifyKey)
 		if err != nil {
 			err = ErrServerError
+			return
 		}
 
 		refreshAccessJwtClaims := NewJwtClaims(issuer, clientID, ScopeRefreshToken, "")
@@ -60,6 +61,7 @@ func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc 
 		refreshTokenStr, err = NewHS256JwtClaimsToken(accessJwtClaims, jwtVerifyKey)
 		if err != nil {
 			err = ErrServerError
+			return
 		}
 		token = &TokenResponse{
 			AccessToken:  tokenStr,
