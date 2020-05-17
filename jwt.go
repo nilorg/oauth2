@@ -172,17 +172,27 @@ func newJwtToken(v interface{}, algorithm string, key interface{}) (token string
 }
 
 // NewJwtToken ...
-func NewJwtToken(claims *JwtClaims, algorithm string, key interface{}) (string, error) {
+func NewJwtToken(v interface{}, algorithm string, key interface{}) (string, error) {
+	return newJwtToken(v, algorithm, key)
+}
+
+// NewJwtClaimsToken ...
+func NewJwtClaimsToken(claims *JwtClaims, algorithm string, key interface{}) (string, error) {
 	return newJwtToken(claims, algorithm, key)
 }
 
-// NewHS256JwtToken ...
-func NewHS256JwtToken(claims *JwtClaims, jwtVerifyKey []byte) (string, error) {
+// NewJwtStandardClaimsToken ...
+func NewJwtStandardClaimsToken(claims *JwtStandardClaims, algorithm string, key interface{}) (string, error) {
+	return newJwtToken(claims, algorithm, key)
+}
+
+// NewHS256JwtClaimsToken ...
+func NewHS256JwtClaimsToken(claims *JwtClaims, jwtVerifyKey []byte) (string, error) {
 	return newJwtToken(claims, "HS256", jwtVerifyKey)
 }
 
-// ParseJwtToken ...
-func ParseJwtToken(token string, key interface{}) (claims *JwtClaims, err error) {
+// parseJwtToken ...
+func parseJwtToken(token string, key interface{}, dest ...interface{}) (err error) {
 	var (
 		tok *jwt.JSONWebToken
 	)
@@ -190,12 +200,25 @@ func ParseJwtToken(token string, key interface{}) (claims *JwtClaims, err error)
 	if err != nil {
 		return
 	}
-	claims = new(JwtClaims)
-	err = tok.Claims(key, claims)
+	err = tok.Claims(key, dest)
 	return
 }
 
-// ParseHS256JwtToken ...
-func ParseHS256JwtToken(token string, jwtVerifyKey []byte) (claims *JwtClaims, err error) {
-	return ParseJwtToken(token, jwtVerifyKey)
+// ParseJwtClaimsToken ...
+func ParseJwtClaimsToken(token string, key interface{}) (claims *JwtClaims, err error) {
+	claims = new(JwtClaims)
+	err = parseJwtToken(token, key, claims)
+	return
+}
+
+// ParseJwtStandardClaimsToken ...
+func ParseJwtStandardClaimsToken(token string, key interface{}) (claims *JwtStandardClaims, err error) {
+	claims = new(JwtStandardClaims)
+	err = parseJwtToken(token, key, claims)
+	return
+}
+
+// ParseHS256JwtClaimsToken ...
+func ParseHS256JwtClaimsToken(token string, jwtVerifyKey []byte) (claims *JwtClaims, err error) {
+	return ParseJwtClaimsToken(token, jwtVerifyKey)
 }

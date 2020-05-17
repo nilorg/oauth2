@@ -49,7 +49,7 @@ func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc 
 	return func(issuer, clientID, scope, openID string) (token *TokenResponse, err error) {
 		accessJwtClaims := NewJwtClaims(issuer, clientID, scope, openID)
 		var tokenStr string
-		tokenStr, err = NewHS256JwtToken(accessJwtClaims, jwtVerifyKey)
+		tokenStr, err = NewHS256JwtClaimsToken(accessJwtClaims, jwtVerifyKey)
 		if err != nil {
 			err = ErrServerError
 		}
@@ -57,7 +57,7 @@ func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc 
 		refreshAccessJwtClaims := NewJwtClaims(issuer, clientID, ScopeRefreshToken, "")
 		refreshAccessJwtClaims.ID = tokenStr
 		var refreshTokenStr string
-		refreshTokenStr, err = NewHS256JwtToken(accessJwtClaims, jwtVerifyKey)
+		refreshTokenStr, err = NewHS256JwtClaimsToken(accessJwtClaims, jwtVerifyKey)
 		if err != nil {
 			err = ErrServerError
 		}
@@ -76,7 +76,7 @@ func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc 
 func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 	return func(clientID, refreshToken string) (token *TokenResponse, err error) {
 		refreshTokenClaims := &JwtClaims{}
-		refreshTokenClaims, err = ParseHS256JwtToken(refreshToken, jwtVerifyKey)
+		refreshTokenClaims, err = ParseHS256JwtClaimsToken(refreshToken, jwtVerifyKey)
 		if err != nil {
 			return
 		}
@@ -91,7 +91,7 @@ func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 		refreshTokenClaims.ExpiresAt = time.Now().Add(AccessTokenExpire).Unix()
 
 		var tokenClaims *JwtClaims
-		tokenClaims, err = ParseHS256JwtToken(refreshTokenClaims.ID, jwtVerifyKey)
+		tokenClaims, err = ParseHS256JwtClaimsToken(refreshTokenClaims.ID, jwtVerifyKey)
 		if err != nil {
 			return
 		}
@@ -102,12 +102,12 @@ func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 		tokenClaims.ExpiresAt = time.Now().Add(AccessTokenExpire).Unix()
 
 		var refreshTokenStr string
-		refreshTokenStr, err = NewHS256JwtToken(refreshTokenClaims, jwtVerifyKey)
+		refreshTokenStr, err = NewHS256JwtClaimsToken(refreshTokenClaims, jwtVerifyKey)
 		if err != nil {
 			return
 		}
 		var tokenStr string
-		tokenStr, err = NewHS256JwtToken(tokenClaims, jwtVerifyKey)
+		tokenStr, err = NewHS256JwtClaimsToken(tokenClaims, jwtVerifyKey)
 		token = &TokenResponse{
 			AccessToken:  tokenStr,
 			RefreshToken: refreshTokenStr,
@@ -122,6 +122,6 @@ func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 // NewDefaultParseAccessToken 创建默认解析AccessToken方法
 func NewDefaultParseAccessToken(jwtVerifyKey []byte) ParseAccessTokenFunc {
 	return func(accessToken string) (claims *JwtClaims, err error) {
-		return ParseHS256JwtToken(accessToken, jwtVerifyKey)
+		return ParseHS256JwtClaimsToken(accessToken, jwtVerifyKey)
 	}
 }
