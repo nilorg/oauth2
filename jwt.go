@@ -172,8 +172,8 @@ func newJwtToken(v interface{}, algorithm string, key interface{}) (token string
 }
 
 // NewJwtToken ...
-func NewJwtToken(claims *JwtClaims, algorithm string, jwtVerifyKey []byte) (string, error) {
-	return newJwtToken(claims, algorithm, jwtVerifyKey)
+func NewJwtToken(claims *JwtClaims, algorithm string, key interface{}) (string, error) {
+	return newJwtToken(claims, algorithm, key)
 }
 
 // NewHS256JwtToken ...
