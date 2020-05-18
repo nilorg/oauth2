@@ -92,30 +92,35 @@ func (c JwtStandardClaims) Valid() error {
 
 // VerifyAudience Compares the aud claim against cmp.
 // If required is false, this method will return true if the value matches or is unset
+// 如果required为false，如果值匹配或未设置，此方法将返回true
 func (c *JwtStandardClaims) VerifyAudience(cmp []string, req bool) bool {
 	return verifyAud(c.Audience, cmp, req)
 }
 
 // VerifyExpiresAt Compares the exp claim against cmp.
 // If required is false, this method will return true if the value matches or is unset
+// 如果required为false，如果值匹配或未设置，此方法将返回true
 func (c *JwtStandardClaims) VerifyExpiresAt(cmp int64, req bool) bool {
 	return verifyExp(c.ExpiresAt, cmp, req)
 }
 
 // VerifyIssuedAt Compares the iat claim against cmp.
 // If required is false, this method will return true if the value matches or is unset
+// 如果required为false，如果值匹配或未设置，此方法将返回true
 func (c *JwtStandardClaims) VerifyIssuedAt(cmp int64, req bool) bool {
 	return verifyIat(c.IssuedAt, cmp, req)
 }
 
 // VerifyIssuer Compares the iss claim against cmp.
 // If required is false, this method will return true if the value matches or is unset
+// 如果required为false，如果值匹配或未设置，此方法将返回true
 func (c *JwtStandardClaims) VerifyIssuer(cmp string, req bool) bool {
 	return verifyIss(c.Issuer, cmp, req)
 }
 
 // VerifyNotBefore Compares the nbf claim against cmp.
 // If required is false, this method will return true if the value matches or is unset
+// 如果required为false，如果值匹配或未设置，此方法将返回true
 func (c *JwtStandardClaims) VerifyNotBefore(cmp int64, req bool) bool {
 	return verifyNbf(c.NotBefore, cmp, req)
 }
@@ -128,6 +133,7 @@ type JwtClaims struct {
 
 // VerifyScope Compares the aud claim against cmp.
 // If required is false, this method will return true if the value matches or is unset
+// 如果required为false，如果值匹配或未设置，此方法将返回true
 func (c *JwtClaims) VerifyScope(scope string, req bool) bool {
 	source := strings.Split(c.Scope, " ")
 	array := strings.Split(scope, " ")
@@ -200,7 +206,7 @@ func parseJwtToken(token string, key interface{}, dest ...interface{}) (err erro
 	if err != nil {
 		return
 	}
-	err = tok.Claims(key, dest)
+	err = tok.Claims(key, dest...)
 	return
 }
 
