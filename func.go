@@ -1,7 +1,11 @@
 package oauth2
 
 import (
+	"strings"
 	"time"
+
+	"github.com/nilorg/pkg/slice"
+	sdkStrings "github.com/nilorg/sdk/strings"
 )
 
 // VerifyClientFunc 验证客户端委托
@@ -23,7 +27,7 @@ type VerifyPasswordFunc func(username, password string) (openID string, err erro
 type VerifyScopeFunc func(scope []string) (err error)
 
 // GenerateAccessTokenFunc 生成AccessToken委托
-type GenerateAccessTokenFunc func(issuer, clientID, scope, openID string) (token *TokenResponse, err error)
+type GenerateAccessTokenFunc func(issuer, clientID, scope, openID string, code *CodeValue) (token *TokenResponse, err error)
 
 // GenerateDeviceAuthorizationFunc 生成设备授权
 type GenerateDeviceAuthorizationFunc func(issuer, verificationURI, clientID, scope string) (resp *DeviceAuthorizationResponse, err error)
@@ -46,8 +50,14 @@ type TokenRevocationFunc func(token, clientID string, tokenTypeHint ...string)
 
 // NewDefaultGenerateAccessToken 创建默认生成AccessToken方法
 func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc {
-	return func(issuer, clientID, scope, openID string) (token *TokenResponse, err error) {
+	return func(issuer, clientID, scope, openID string, codeVlue *CodeValue) (token *TokenResponse, err error) {
+		scopeSplit := sdkStrings.Split(scope, " ")
 		accessJwtClaims := NewJwtClaims(issuer, clientID, scope, openID)
+		if codeVlue != nil {
+			if len(scopeSplit) > 0 && !slice.IsEqual(scopeSplit, codeVlue.Scope) {
+				accessJwtClaims = NewJwtClaims(issuer, clientID, strings.Join(codeVlue.Scope, " "), openID)
+			}
+		}
 		var tokenStr string
 		tokenStr, err = NewHS256JwtClaimsToken(accessJwtClaims, jwtVerifyKey)
 		if err != nil {

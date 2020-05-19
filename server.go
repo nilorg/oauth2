@@ -345,13 +345,13 @@ func (srv *Server) tokenAuthorizationCode(client *ClientBasic, clientID, code, r
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, value.OpenID)
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, value.OpenID, value)
 	return
 }
 
 // 隐藏式（implicit）
 func (srv *Server) authorizeImplicit(clientID, scope, openID string) (token *TokenResponse, err error) {
-	token, err = srv.GenerateAccessToken(srv.opts.Issuer, clientID, scope, openID)
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, clientID, scope, openID, nil)
 	return
 }
 
@@ -368,13 +368,13 @@ func (srv *Server) tokenResourceOwnerPasswordCredentials(client *ClientBasic, us
 	if err != nil {
 		return
 	}
-	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, openID)
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, openID, nil)
 	return
 }
 
 // 客户端凭证（client credentials）
 func (srv *Server) tokenClientCredentials(client *ClientBasic, scope string) (token *TokenResponse, err error) {
-	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, "")
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, "", nil)
 	return
 }
 
@@ -390,6 +390,6 @@ func (srv *Server) tokenDeviceCode(client *ClientBasic, clientID, deviceCode str
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, value.OpenID)
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, value.OpenID, nil)
 	return
 }
