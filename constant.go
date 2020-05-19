@@ -3,7 +3,7 @@ package oauth2
 import "time"
 
 const (
-	contentTypeJSON = "application/json;charset=UTF-8"
+	contentTypeJSON = "application/json"
 	// AccessTokenExpire ...
 	AccessTokenExpire = time.Second * 3600
 	// RefreshTokenExpire ...
