@@ -181,16 +181,6 @@ func (srv *Server) HandleTokenIntrospection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// 判断参数
-	clientID := r.FormValue(ClientIDKey)
-	if clientID == "" {
-		WriterError(w, ErrInvalidRequest)
-		return
-	}
-	if reqClientBasic.ID != clientID {
-		WriterError(w, ErrInvalidRequest)
-		return
-	}
 	token := r.FormValue(TokenKey)
 	tokenTypeHint := r.FormValue(TokenTypeHintKey)
 	if tokenTypeHint != "" && tokenTypeHint != AccessTokenKey && tokenTypeHint != RefreshTokenKey {
@@ -198,7 +188,7 @@ func (srv *Server) HandleTokenIntrospection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var resp *IntrospectionResponse
-	resp, err = srv.VerifyIntrospectionToken(token, clientID, tokenTypeHint)
+	resp, err = srv.VerifyIntrospectionToken(token, reqClientBasic.ID, tokenTypeHint)
 	if err != nil {
 		WriterError(w, err)
 	} else {
