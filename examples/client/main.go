@@ -10,7 +10,7 @@ var (
 	client *oauth2.Client
 )
 
-func init()  {
+func init() {
 	logger.Init()
 	client = oauth2.NewClient("http://localhost:8003", "oauth2_client", "password")
 	client.Log = logger.Default()
@@ -31,7 +31,7 @@ func main() {
 	})
 	r.GET("/callback", func(c *gin.Context) {
 		code := c.Query("code")
-		token, err := client.TokenAuthorizationCode(code, c.Request.URL.String())
+		token, err := client.TokenAuthorizationCode(code, c.Request.URL.String(), client.ID)
 		if err != nil {
 			c.JSON(200, gin.H{
 				"message": "callback",

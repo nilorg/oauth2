@@ -1,4 +1,4 @@
-# oauth2 (开发中...)
+# oauth2
 
 # Usage
 ```bash
@@ -119,7 +119,7 @@ func main() {
 		return
 	}
 
-	srv.VerifyScope = func(scopes []string) (err error) {
+	srv.VerifyScope = func(scopes []string, clientID string) (err error) {
 		// err = oauth2.ErrInvalidScope
 		return
 	}
