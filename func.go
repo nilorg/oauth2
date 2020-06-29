@@ -24,7 +24,7 @@ type VerifyCodeFunc func(code, clientID, redirectURI string) (value *CodeValue, 
 type VerifyPasswordFunc func(username, password string) (openID string, err error)
 
 // VerifyScopeFunc 验证范围委托
-type VerifyScopeFunc func(scope []string) (err error)
+type VerifyScopeFunc func(scope []string, clientID string) (err error)
 
 // GenerateAccessTokenFunc 生成AccessToken委托
 type GenerateAccessTokenFunc func(issuer, clientID, scope, openID string, code *CodeValue) (token *TokenResponse, err error)

@@ -111,7 +111,7 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = srv.VerifyScope(StringSplit(scope, " ")); err != nil {
+	if err = srv.VerifyScope(StringSplit(scope, " "), clientID); err != nil {
 		// ErrInvalidScope
 		RedirectError(w, r, redirectURI, err)
 		return
@@ -255,7 +255,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	scope := r.PostFormValue(ScopeKey)
-	if err = srv.VerifyScope(StringSplit(scope, " ")); err != nil {
+	if err = srv.VerifyScope(StringSplit(scope, " "), reqClientBasic.ID); err != nil {
 		// ErrInvalidScope
 		WriterError(w, err)
 		return
