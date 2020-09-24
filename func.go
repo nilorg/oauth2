@@ -11,6 +11,9 @@ import (
 // VerifyClientFunc 验证客户端委托
 type VerifyClientFunc func(basic *ClientBasic) (err error)
 
+// VerifyClientIDFunc 验证客户端ID委托
+type VerifyClientIDFunc func(clientID string) (err error)
+
 // VerifyRedirectURIFunc 验证RedirectURI委托
 type VerifyRedirectURIFunc func(clientID, redirectURI string) (err error)
 

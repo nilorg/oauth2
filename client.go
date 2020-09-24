@@ -129,7 +129,12 @@ func (c *Client) token(grantType string, values url.Values) (token *TokenRespons
 		return
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(c.ID, c.Secret)
+
+	// explain: https://tools.ietf.org/html/rfc8628#section-3.4
+	if grantType != DeviceCodeKey && grantType != UrnIetfParamsOAuthGrantTypeDeviceCodeKey {
+		req.SetBasicAuth(c.ID, c.Secret)
+	}
+
 	var resp *http.Response
 	resp, err = c.httpClient.Do(req)
 	if err != nil {

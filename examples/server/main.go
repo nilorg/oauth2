@@ -28,6 +28,13 @@ func main() {
 		}
 		return
 	}
+	srv.VerifyClientID = func(clientID string) (err error) {
+		_, ok := clients[clientID]
+		if !ok {
+			err = oauth2.ErrInvalidClient
+		}
+		return
+	}
 	srv.VerifyCode = func(code, clientID, redirectURI string) (value *oauth2.CodeValue, err error) {
 		//err = oauth2.ErrUnauthorizedClient
 		// 查询缓存/数据库中的code信息

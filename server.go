@@ -10,6 +10,7 @@ import (
 // Server OAuth2Server
 type Server struct {
 	VerifyClient                VerifyClientFunc
+	VerifyClientID              VerifyClientIDFunc
 	VerifyScope                 VerifyScopeFunc
 	VerifyPassword              VerifyPasswordFunc
 	VerifyRedirectURI           VerifyRedirectURIFunc
@@ -41,6 +42,9 @@ func (srv *Server) Init(opts ...ServerOption) {
 
 	if srv.VerifyClient == nil {
 		panic(ErrVerifyClientFuncNil)
+	}
+	if srv.VerifyClientID == nil {
+		panic(ErrVerifyClientIDFuncNil)
 	}
 	if srv.VerifyPassword == nil {
 		panic(ErrVerifyPasswordFuncNil)
@@ -234,24 +238,34 @@ func (srv *Server) HandleTokenRevocation(w http.ResponseWriter, r *http.Request)
 
 // HandleToken 处理Token
 func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
-	var reqClientBasic *ClientBasic
-	var err error
-	reqClientBasic, err = RequestClientBasic(r)
-	if err != nil {
-		WriterError(w, err)
-		return
-	}
-
-	err = srv.VerifyClient(reqClientBasic)
-	if err != nil {
-		WriterError(w, err)
-		return
-	}
 
 	grantType := r.PostFormValue(GrantTypeKey)
 	if grantType == "" {
 		WriterError(w, ErrInvalidRequest)
 		return
+	}
+
+	var reqClientBasic *ClientBasic
+	var err error
+	// explain: https://tools.ietf.org/html/rfc8628#section-3.4 {
+	if grantType != DeviceCodeKey && grantType != UrnIetfParamsOAuthGrantTypeDeviceCodeKey {
+		reqClientBasic, err = RequestClientBasic(r)
+		if err != nil {
+			WriterError(w, err)
+			return
+		}
+		err = srv.VerifyClient(reqClientBasic)
+		if err != nil {
+			WriterError(w, err)
+			return
+		}
+	} else {
+		clientID := r.PostFormValue(ClientIDKey)
+		err = srv.VerifyClientID(clientID)
+		if err != nil {
+			WriterError(w, err)
+			return
+		}
 	}
 
 	scope := r.PostFormValue(ScopeKey)
@@ -308,7 +322,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 	} else if grantType == UrnIetfParamsOAuthGrantTypeDeviceCodeKey || grantType == DeviceCodeKey { // https://tools.ietf.org/html/rfc8628#section-3.4
 		deviceCode := r.PostFormValue(DeviceCodeKey)
 		clientID := r.PostFormValue(ClientIDKey)
-		model, err := srv.tokenDeviceCode(reqClientBasic, clientID, deviceCode)
+		model, err := srv.tokenDeviceCode(clientID, deviceCode)
 		if err != nil {
 			WriterError(w, err)
 		} else {
@@ -369,17 +383,13 @@ func (srv *Server) tokenClientCredentials(client *ClientBasic, scope string) (to
 }
 
 // 设备模式（Device Code）
-func (srv *Server) tokenDeviceCode(client *ClientBasic, clientID, deviceCode string) (token *TokenResponse, err error) {
-	if client.ID != clientID {
-		err = ErrInvalidClient
-		return
-	}
+func (srv *Server) tokenDeviceCode(clientID, deviceCode string) (token *TokenResponse, err error) {
 	var value *DeviceCodeValue
-	value, err = srv.VerifyDeviceCode(deviceCode, client.ID)
+	value, err = srv.VerifyDeviceCode(deviceCode, clientID)
 	if err != nil {
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, value.OpenID, nil)
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, clientID, scope, value.OpenID, nil)
 	return
 }
