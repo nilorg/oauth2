@@ -74,14 +74,14 @@ func main() {
 	srv.RefreshAccessToken = oauth2.NewDefaultRefreshAccessToken([]byte("xxxxx"))
 	srv.ParseAccessToken = oauth2.NewDefaultParseAccessToken([]byte("xxxxx"))
 
-	srv.GenerateDeviceAuthorization = func(issuer, verificationURI, clientID, scope string) (resp *oauth2.DeviceAuthorizationResponse, err error) {
+	srv.GenerateDeviceAuthorization = func(issuer, verificationURI, clientID string, scope []string) (resp *oauth2.DeviceAuthorizationResponse, err error) {
 		resp = &oauth2.DeviceAuthorizationResponse{
-			DeviceCode:            oauth2.RandomCode(),
-			UserCode:              oauth2.RandomUserCode(),
-			VerificationURI:       verificationURI,
-			VerificationURIQrcode: "",
-			ExpiresIn:             0,
-			Interval:              5,
+			DeviceCode:              oauth2.RandomCode(),
+			UserCode:                oauth2.RandomUserCode(),
+			VerificationURI:         issuer + verificationURI,
+			VerificationURIComplete: "",
+			ExpiresIn:               0,
+			Interval:                5,
 		}
 		return
 	}
