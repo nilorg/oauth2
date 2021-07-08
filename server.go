@@ -135,7 +135,6 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		} else {
 			RedirectSuccess(w, r, redirectURI, code)
 		}
-		break
 	case TokenKey:
 		var token *TokenResponse
 		token, err = srv.authorizeImplicit(clientID, scope, openID)
@@ -144,10 +143,8 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		} else {
 			http.Redirect(w, r, fmt.Sprintf("%s#access_token=%s&state=%s&token_type=%s&expires_in=%d", redirectURIStr, token.AccessToken, state, token.TokenType, token.ExpiresIn), http.StatusFound)
 		}
-		break
 	default:
 		RedirectError(w, r, redirectURI, ErrUnsupportedResponseType)
-		break
 	}
 }
 

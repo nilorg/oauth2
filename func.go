@@ -90,7 +90,7 @@ func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc 
 // NewDefaultRefreshAccessToken 创建默认刷新AccessToken方法
 func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 	return func(clientID, refreshToken string) (token *TokenResponse, err error) {
-		refreshTokenClaims := &JwtClaims{}
+		var refreshTokenClaims *JwtClaims
 		refreshTokenClaims, err = ParseHS256JwtClaimsToken(refreshToken, jwtVerifyKey)
 		if err != nil {
 			return
