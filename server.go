@@ -328,6 +328,18 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 			WriterJSON(w, model)
 		}
 	} else {
+		if srv.opts.CustomGrantTypeEnabled {
+			custom, ok := srv.opts.CustomGrantTypeAuthentication[grantType]
+			if ok {
+				model, err := srv.generateCustomGrantTypeAccessToken(reqClientBasic, scope, r, custom)
+				if err != nil {
+					WriterError(w, err)
+				} else {
+					WriterJSON(w, model)
+				}
+				return
+			}
+		}
 		WriterError(w, ErrUnsupportedGrantType)
 	}
 }
@@ -368,6 +380,17 @@ func (srv *Server) authorizeDeviceCode(clientID, scope string) (resp *DeviceAuth
 func (srv *Server) tokenResourceOwnerPasswordCredentials(client *ClientBasic, username, password, scope string) (token *TokenResponse, err error) {
 	var openID string
 	openID, err = srv.VerifyPassword(username, password)
+	if err != nil {
+		return
+	}
+	token, err = srv.GenerateAccessToken(srv.opts.Issuer, client.ID, scope, openID, nil)
+	return
+}
+
+// generateCustomGrantTypeAccessToken 生成自定义GrantType Token
+func (srv *Server) generateCustomGrantTypeAccessToken(client *ClientBasic, scope string, req *http.Request, custom CustomGrantTypeAuthenticationFunc) (token *TokenResponse, err error) {
+	var openID string
+	openID, err = custom(client, req)
 	if err != nil {
 		return
 	}

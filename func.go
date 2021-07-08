@@ -1,6 +1,7 @@
 package oauth2
 
 import (
+	"net/http"
 	"strings"
 	"time"
 
@@ -50,6 +51,9 @@ type VerifyIntrospectionTokenFunc func(token, clientID string, tokenTypeHint ...
 // TokenRevocationFunc Token撤销委托
 // https://tools.ietf.org/html/rfc7009#section-2.2
 type TokenRevocationFunc func(token, clientID string, tokenTypeHint ...string)
+
+// CustomGrantTypeAuthenticationFunc 自定义GrantType身份验证委托
+type CustomGrantTypeAuthenticationFunc func(client *ClientBasic, req *http.Request) (openID string, err error)
 
 // NewDefaultGenerateAccessToken 创建默认生成AccessToken方法
 func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc {
