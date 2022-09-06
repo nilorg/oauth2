@@ -323,7 +323,9 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 	} else if grantType == AuthorizationCodeKey {
 		code := r.PostFormValue(CodeKey)
 		redirectURIStr := r.PostFormValue(RedirectURIKey)
-		clientID := r.PostFormValue(ClientIDKey)
+		if clientID == "" {
+			clientID = r.PostFormValue(ClientIDKey)
+		}
 		if code == "" || redirectURIStr == "" || clientID == "" {
 			WriterError(w, ErrInvalidRequest)
 			return
