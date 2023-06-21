@@ -31,17 +31,8 @@ type VerifyPasswordFunc func(ctx context.Context, username, password string) (op
 // VerifyScopeFunc 验证范围委托
 type VerifyScopeFunc func(ctx context.Context, scope []string, clientID string) (err error)
 
-// GenerateAccessTokenFunc 生成AccessToken委托
-type GenerateAccessTokenFunc func(ctx context.Context, issuer, clientID, scope, openID string, code *CodeValue) (token *TokenResponse, err error)
-
 // GenerateDeviceAuthorizationFunc 生成设备授权
 type GenerateDeviceAuthorizationFunc func(ctx context.Context, issuer, verificationURI, clientID string, scope []string) (resp *DeviceAuthorizationResponse, err error)
-
-// ParseAccessTokenFunc 解析AccessToken为JwtClaims委托
-type ParseAccessTokenFunc func(ctx context.Context, accessToken string) (claims *JwtClaims, err error)
-
-// RefreshAccessTokenFunc 刷新AccessToken委托
-type RefreshAccessTokenFunc func(ctx context.Context, clientID, refreshToken string) (token *TokenResponse, err error)
 
 // VerifyDeviceCodeFunc 验证DeviceCode委托
 type VerifyDeviceCodeFunc func(ctx context.Context, deviceCode, clientID string) (value *DeviceCodeValue, err error)
@@ -58,6 +49,9 @@ type CustomGrantTypeAuthenticationFunc func(ctx context.Context, client *ClientB
 
 // VerifyGrantTypeFunc 验证授权类型委托
 type VerifyGrantTypeFunc func(ctx context.Context, clientID, grantType string) (err error)
+
+// GenerateAccessTokenFunc 生成AccessToken委托
+type GenerateAccessTokenFunc func(ctx context.Context, issuer, clientID, scope, openID string, code *CodeValue) (token *TokenResponse, err error)
 
 // NewDefaultGenerateAccessToken 创建默认生成AccessToken方法
 func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc {
@@ -94,6 +88,9 @@ func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc 
 		return
 	}
 }
+
+// ParseAccessTokenFunc 解析AccessToken为JwtClaims委托
+type ParseAccessTokenFunc func(ctx context.Context, accessToken string) (claims *JwtClaims, err error)
 
 // NewDefaultRefreshAccessToken 创建默认刷新AccessToken方法
 func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
@@ -142,9 +139,45 @@ func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 	}
 }
 
+// RefreshAccessTokenFunc 刷新AccessToken委托
+type RefreshAccessTokenFunc func(ctx context.Context, clientID, refreshToken string) (token *TokenResponse, err error)
+
 // NewDefaultParseAccessToken 创建默认解析AccessToken方法
 func NewDefaultParseAccessToken(jwtVerifyKey []byte) ParseAccessTokenFunc {
 	return func(ctx context.Context, accessToken string) (claims *JwtClaims, err error) {
 		return ParseHS256JwtClaimsToken(accessToken, jwtVerifyKey)
 	}
+}
+
+// AccessTokener AccessToken接口
+type AccessTokener interface {
+	Generate(ctx context.Context, issuer, clientID, scope, openID string, code *CodeValue) (token *TokenResponse, err error)
+	Refresh(ctx context.Context, clientID, refreshToken string) (token *TokenResponse, err error)
+	Parse(ctx context.Context, accessToken string) (claims *JwtClaims, err error)
+}
+
+type DefaultAccessToken struct {
+	AccessTokener
+	JwtVerifyKey []byte
+}
+
+func NewDefaultAccessToken(jwtVerifyKey []byte) *DefaultAccessToken {
+	return &DefaultAccessToken{
+		JwtVerifyKey: jwtVerifyKey,
+	}
+}
+
+// Generate 生成AccessToken
+func (d *DefaultAccessToken) Generate(ctx context.Context, issuer, clientID, scope, openID string, code *CodeValue) (token *TokenResponse, err error) {
+	return NewDefaultGenerateAccessToken(d.JwtVerifyKey)(ctx, issuer, clientID, scope, openID, code)
+}
+
+// Refresh 刷新AccessToken
+func (d *DefaultAccessToken) Refresh(ctx context.Context, clientID, refreshToken string) (token *TokenResponse, err error) {
+	return NewDefaultRefreshAccessToken(d.JwtVerifyKey)(ctx, clientID, refreshToken)
+}
+
+// Parse 解析AccessToken
+func (d *DefaultAccessToken) Parse(ctx context.Context, accessToken string) (claims *JwtClaims, err error) {
+	return NewDefaultParseAccessToken(d.JwtVerifyKey)(ctx, accessToken)
 }

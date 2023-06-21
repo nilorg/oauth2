@@ -78,6 +78,8 @@ var (
 	ErrStateValueDidNotMatch = errors.New("state value did not match")
 	// ErrMissingAccessToken ...
 	ErrMissingAccessToken = errors.New("missing access token")
+	// ErrAccessToken ...
+	ErrAccessToken = errors.New("OAuth2 Server AccessToken Is Nil")
 )
 
 var (

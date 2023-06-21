@@ -18,14 +18,12 @@ type Server struct {
 	VerifyRedirectURI           VerifyRedirectURIFunc
 	GenerateCode                GenerateCodeFunc
 	VerifyCode                  VerifyCodeFunc
-	GenerateAccessToken         GenerateAccessTokenFunc
 	GenerateDeviceAuthorization GenerateDeviceAuthorizationFunc
 	VerifyDeviceCode            VerifyDeviceCodeFunc
-	RefreshAccessToken          RefreshAccessTokenFunc
-	ParseAccessToken            ParseAccessTokenFunc
 	VerifyIntrospectionToken    VerifyIntrospectionTokenFunc
 	TokenRevocation             TokenRevocationFunc
 	opts                        ServerOptions
+	AccessToken                 AccessTokener
 }
 
 // NewServer 创建服务器
@@ -66,14 +64,8 @@ func (srv *Server) Init(opts ...ServerOption) {
 	if srv.VerifyGrantType == nil {
 		panic(ErrVerifyGrantTypeFuncNil)
 	}
-	if srv.GenerateAccessToken == nil {
-		panic(ErrGenerateAccessTokenFuncNil)
-	}
-	if srv.RefreshAccessToken == nil {
-		panic(ErrRefreshAccessTokenFuncNil)
-	}
-	if srv.ParseAccessToken == nil {
-		panic(ErrParseAccessTokenFuncNil)
+	if srv.AccessToken == nil {
+		panic(ErrAccessToken)
 	}
 
 	if srv.opts.DeviceAuthorizationEndpointEnabled {
@@ -319,7 +311,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 
 	if grantType == RefreshTokenKey {
 		refreshToken := r.PostFormValue(RefreshTokenKey)
-		model, err := srv.RefreshAccessToken(ctx, reqClientBasic.ID, refreshToken)
+		model, err := srv.AccessToken.Refresh(ctx, reqClientBasic.ID, refreshToken)
 		if err != nil {
 			WriterError(w, err)
 		} else {
@@ -405,13 +397,13 @@ func (srv *Server) tokenAuthorizationCode(ctx context.Context, client *ClientBas
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = srv.GenerateAccessToken(ctx, srv.opts.Issuer, client.ID, scope, value.OpenID, value)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, client.ID, scope, value.OpenID, value)
 	return
 }
 
 // 隐藏式（implicit）
 func (srv *Server) authorizeImplicit(ctx context.Context, clientID, scope, openID string) (token *TokenResponse, err error) {
-	token, err = srv.GenerateAccessToken(ctx, srv.opts.Issuer, clientID, scope, openID, nil)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, clientID, scope, openID, nil)
 	return
 }
 
@@ -428,7 +420,7 @@ func (srv *Server) tokenResourceOwnerPasswordCredentials(ctx context.Context, cl
 	if err != nil {
 		return
 	}
-	token, err = srv.GenerateAccessToken(ctx, srv.opts.Issuer, client.ID, scope, openID, nil)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, client.ID, scope, openID, nil)
 	return
 }
 
@@ -439,13 +431,13 @@ func (srv *Server) generateCustomGrantTypeAccessToken(ctx context.Context, clien
 	if err != nil {
 		return
 	}
-	token, err = srv.GenerateAccessToken(ctx, srv.opts.Issuer, client.ID, scope, openID, nil)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, client.ID, scope, openID, nil)
 	return
 }
 
 // 客户端凭证（client credentials）
 func (srv *Server) tokenClientCredentials(ctx context.Context, client *ClientBasic, scope string) (token *TokenResponse, err error) {
-	token, err = srv.GenerateAccessToken(ctx, srv.opts.Issuer, client.ID, scope, "", nil)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, client.ID, scope, "", nil)
 	return
 }
 
@@ -457,6 +449,6 @@ func (srv *Server) tokenDeviceCode(ctx context.Context, clientID, deviceCode str
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = srv.GenerateAccessToken(ctx, srv.opts.Issuer, clientID, scope, value.OpenID, nil)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, clientID, scope, value.OpenID, nil)
 	return
 }

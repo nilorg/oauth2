@@ -70,10 +70,7 @@ func main() {
 		// err = oauth2.ErrInvalidScope
 		return
 	}
-
-	srv.GenerateAccessToken = oauth2.NewDefaultGenerateAccessToken([]byte("xxxxx"))
-	srv.RefreshAccessToken = oauth2.NewDefaultRefreshAccessToken([]byte("xxxxx"))
-	srv.ParseAccessToken = oauth2.NewDefaultParseAccessToken([]byte("xxxxx"))
+	srv.AccessToken = oauth2.NewDefaultAccessToken([]byte("xxxxx"))
 
 	srv.GenerateDeviceAuthorization = func(ctx context.Context, issuer, verificationURI, clientID string, scope []string) (resp *oauth2.DeviceAuthorizationResponse, err error) {
 		resp = &oauth2.DeviceAuthorizationResponse{

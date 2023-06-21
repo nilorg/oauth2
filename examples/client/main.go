@@ -13,7 +13,7 @@ var (
 func init() {
 	logger.Init()
 	client = oauth2.NewClient("http://localhost:8003", "oauth2_client", "password")
-	client.Log = logger.Default()
+	client.Log = &oauth2.DefaultLogger{}
 }
 func main() {
 	r := gin.Default()
@@ -23,7 +23,7 @@ func main() {
 		//	logger.Errorln(err)
 		//	return
 		//}
-		err := client.AuthorizeAuthorizationCode(c.Writer, "http://localhost:8080/callback", "test", "bbbbb")
+		err := client.AuthorizeAuthorizationCode(c.Request.Context(), c.Writer, "http://localhost:8080/callback", "test", "bbbbb")
 		if err != nil {
 			logger.Errorln(err)
 			return
@@ -31,7 +31,7 @@ func main() {
 	})
 	r.GET("/callback", func(c *gin.Context) {
 		code := c.Query("code")
-		token, err := client.TokenAuthorizationCode(code, c.Request.URL.String(), client.ID)
+		token, err := client.TokenAuthorizationCode(c.Request.Context(), code, c.Request.URL.String(), client.ID)
 		if err != nil {
 			c.JSON(200, gin.H{
 				"message": "callback",
