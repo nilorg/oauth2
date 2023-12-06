@@ -151,7 +151,7 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			RedirectError(w, r, redirectURI, err)
 		} else {
-			http.Redirect(w, r, fmt.Sprintf("%s#access_token=%s&state=%s&token_type=%s&expires_in=%d", redirectURIStr, token.AccessToken, state, token.TokenType, token.ExpiresIn), http.StatusFound)
+			http.Redirect(w, r, fmt.Sprintf("%s#access_token=%s&refresh_token=%s&id_token=%s&state=%s&token_type=%s&expires_in=%d", redirectURIStr, token.AccessToken, token.RefreshToken, token.IDToken, state, token.TokenType, token.ExpiresIn), http.StatusFound)
 		}
 	default:
 		RedirectError(w, r, redirectURI, ErrUnsupportedResponseType)
