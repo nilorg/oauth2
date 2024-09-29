@@ -416,7 +416,7 @@ func (srv *Server) authorizeDeviceCode(ctx context.Context, clientID, scope stri
 // 密码式（password）
 func (srv *Server) tokenResourceOwnerPasswordCredentials(ctx context.Context, client *ClientBasic, username, password, scope string) (token *TokenResponse, err error) {
 	var openID string
-	openID, err = srv.VerifyPassword(ctx, username, password)
+	openID, err = srv.VerifyPassword(ctx, client.ID, username, password)
 	if err != nil {
 		return
 	}

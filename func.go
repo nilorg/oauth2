@@ -26,7 +26,7 @@ type GenerateCodeFunc func(ctx context.Context, clientID, openID, redirectURI st
 type VerifyCodeFunc func(ctx context.Context, code, clientID, redirectURI string) (value *CodeValue, err error)
 
 // VerifyPasswordFunc 验证账号密码委托
-type VerifyPasswordFunc func(ctx context.Context, username, password string) (openID string, err error)
+type VerifyPasswordFunc func(ctx context.Context, clientID, username, password string) (openID string, err error)
 
 // VerifyScopeFunc 验证范围委托
 type VerifyScopeFunc func(ctx context.Context, scope []string, clientID string) (err error)
