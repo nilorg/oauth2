@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	jose "github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/nilorg/pkg/slice"
 	"github.com/nilorg/sdk/strings"
-	jose "github.com/square/go-jose/v3"
-	"github.com/square/go-jose/v3/jwt"
 )
 
 // 参考 https://github.com/dgrijalva/jwt-go/blob/master/claims.go
@@ -174,7 +174,7 @@ func newJwtToken(v interface{}, algorithm string, key interface{}) (token string
 	if err != nil {
 		return
 	}
-	token, err = jwt.Signed(sig).Claims(v).CompactSerialize()
+	token, err = jwt.Signed(sig).Claims(v).Serialize()
 	return
 }
 
@@ -199,11 +199,13 @@ func NewHS256JwtClaimsToken(claims *JwtClaims, jwtVerifyKey []byte) (string, err
 }
 
 // parseJwtToken ...
-func parseJwtToken(token string, key interface{}, dest ...interface{}) (err error) {
+func parseJwtToken(token string, algorithm string, key interface{}, dest ...interface{}) (err error) {
 	var (
 		tok *jwt.JSONWebToken
 	)
-	tok, err = jwt.ParseSigned(token)
+	tok, err = jwt.ParseSigned(token, []jose.SignatureAlgorithm{
+		jose.SignatureAlgorithm(algorithm),
+	})
 	if err != nil {
 		return
 	}
@@ -212,20 +214,20 @@ func parseJwtToken(token string, key interface{}, dest ...interface{}) (err erro
 }
 
 // ParseJwtClaimsToken ...
-func ParseJwtClaimsToken(token string, key interface{}) (claims *JwtClaims, err error) {
+func ParseJwtClaimsToken(token string, algorithm string, key interface{}) (claims *JwtClaims, err error) {
 	claims = new(JwtClaims)
-	err = parseJwtToken(token, key, claims)
+	err = parseJwtToken(token, algorithm, key, claims)
 	return
 }
 
 // ParseJwtStandardClaimsToken ...
-func ParseJwtStandardClaimsToken(token string, key interface{}) (claims *JwtStandardClaims, err error) {
+func ParseJwtStandardClaimsToken(token string, algorithm string, key interface{}) (claims *JwtStandardClaims, err error) {
 	claims = new(JwtStandardClaims)
-	err = parseJwtToken(token, key, claims)
+	err = parseJwtToken(token, algorithm, key, claims)
 	return
 }
 
 // ParseHS256JwtClaimsToken ...
 func ParseHS256JwtClaimsToken(token string, jwtVerifyKey []byte) (claims *JwtClaims, err error) {
-	return ParseJwtClaimsToken(token, jwtVerifyKey)
+	return ParseJwtClaimsToken(token, "HS256", jwtVerifyKey)
 }

@@ -57,7 +57,7 @@ func main() {
 		return
 	}
 
-	srv.VerifyPassword = func(ctx context.Context, username, password string) (openID string, err error) {
+	srv.VerifyPassword = func(ctx context.Context, clientID, username, password string) (openID string, err error) {
 		if username != "a" || password != "b" {
 			err = oauth2.ErrUnauthorizedClient
 			return
