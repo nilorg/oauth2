@@ -4,7 +4,7 @@ go 1.21
 toolchain go1.24.1
 
 require (
-	github.com/go-jose/go-jose/v4 v4.0.4
+	github.com/go-jose/go-jose/v4 v4.0.5
 	github.com/nilorg/pkg v0.0.0-20240426083412-3cf0c3c3c388
 	github.com/nilorg/sdk v0.0.0-20231213035036-8725c39df5a6
 )
