@@ -1,6 +1,7 @@
 module github.com/nilorg/oauth2
 
 go 1.21
+toolchain go1.24.1
 
 require (
 	github.com/go-jose/go-jose/v4 v4.0.4
@@ -10,5 +11,5 @@ require (
 
 require (
 	github.com/deckarep/golang-set v1.8.0 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
 )
