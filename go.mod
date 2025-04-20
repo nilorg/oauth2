@@ -10,5 +10,5 @@ require (
 
 require (
 	github.com/deckarep/golang-set v1.8.0 // indirect
-	golang.org/x/crypto v0.25.0 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
 )
