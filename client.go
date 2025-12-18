@@ -4,27 +4,29 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 )
 
-// Client oauth2 client
+// Client OAuth2客户端 / OAuth2 client for making authorization requests
 type Client struct {
-	Log                         Logger
-	httpClient                  *http.Client
-	ServerBaseURL               string
-	AuthorizationEndpoint       string
-	TokenEndpoint               string
-	IntrospectEndpoint          string
-	DeviceAuthorizationEndpoint string
-	TokenRevocationEndpoint     string
-	ID                          string
-	Secret                      string
+	Log                         Logger       // 日志记录器 / Logger instance
+	httpClient                  *http.Client // HTTP客户端 / HTTP client for requests
+	ServerBaseURL               string       // 服务器基础URL / OAuth2 server base URL
+	AuthorizationEndpoint       string       // 授权端点 / Authorization endpoint path
+	TokenEndpoint               string       // 令牌端点 / Token endpoint path
+	IntrospectEndpoint          string       // 内省端点 / Introspection endpoint path
+	DeviceAuthorizationEndpoint string       // 设备授权端点 / Device authorization endpoint path
+	TokenRevocationEndpoint     string       // 令牌撤销端点 / Token revocation endpoint path
+	ID                          string       // 客户端ID / Client identifier
+	Secret                      string       // 客户端密钥 / Client secret
 }
 
-// NewClient new oauth2 client
+// NewClient 创建OAuth2客户端 / Create a new OAuth2 client
+// serverBaseURL: 服务器基础URL / OAuth2 server base URL
+// id: 客户端ID / Client identifier
+// secret: 客户端密钥 / Client secret
 func NewClient(serverBaseURL, id, secret string) *Client {
 	httpclient := &http.Client{}
 	httpclient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -73,13 +75,18 @@ func (c *Client) authorize(ctx context.Context, w http.ResponseWriter, responseT
 	return
 }
 
-// AuthorizeAuthorizationCode ...
+// AuthorizeAuthorizationCode 授权码模式授权请求 / Authorization code grant authorization request
+// redirectURI: 重定向URI / Redirect URI after authorization
+// scope: 授权范围 / Requested scope
+// state: 状态码，用于防止CSRF攻击 / State parameter for CSRF protection
 func (c *Client) AuthorizeAuthorizationCode(ctx context.Context, w http.ResponseWriter, redirectURI, scope, state string) (err error) {
 	return c.authorize(ctx, w, CodeKey, redirectURI, scope, state)
 }
 
-// TokenAuthorizationCode ...
-// TokenAuthorizationCode(code, redirectURI, state string)
+// TokenAuthorizationCode 授权码模式获取令牌 / Exchange authorization code for access token
+// code: 授权码 / Authorization code received from authorization server
+// redirectURI: 重定向URI / Redirect URI used in authorization request
+// clientID: 客户端ID / Client identifier
 func (c *Client) TokenAuthorizationCode(ctx context.Context, code, redirectURI, clientID string) (token *TokenResponse, err error) {
 	values := url.Values{
 		CodeKey:        []string{code},
@@ -89,12 +96,16 @@ func (c *Client) TokenAuthorizationCode(ctx context.Context, code, redirectURI, 
 	return c.token(ctx, AuthorizationCodeKey, values)
 }
 
-// AuthorizeImplicit ...
+// AuthorizeImplicit 隐式授权模式授权请求 / Implicit grant authorization request
+// redirectURI: 重定向URI / Redirect URI after authorization
+// scope: 授权范围 / Requested scope
+// state: 状态码，用于防止CSRF攻击 / State parameter for CSRF protection
 func (c *Client) AuthorizeImplicit(ctx context.Context, w http.ResponseWriter, redirectURI, scope, state string) (err error) {
 	return c.authorize(ctx, w, TokenKey, redirectURI, scope, state)
 }
 
-// DeviceAuthorization ...
+// DeviceAuthorization 设备授权请求 / Device authorization request (RFC 8628)
+// scope: 授权范围 / Requested scope
 func (c *Client) DeviceAuthorization(ctx context.Context, w http.ResponseWriter, scope string) (err error) {
 	var uri *url.URL
 	uri, err = url.Parse(c.ServerBaseURL + c.DeviceAuthorizationEndpoint)
@@ -175,7 +186,9 @@ func (c *Client) token(ctx context.Context, grantType string, values url.Values)
 	return
 }
 
-// TokenResourceOwnerPasswordCredentials ...
+// TokenResourceOwnerPasswordCredentials 密码模式获取令牌 / Resource owner password credentials grant
+// username: 用户名 / Resource owner username
+// password: 密码 / Resource owner password
 func (c *Client) TokenResourceOwnerPasswordCredentials(ctx context.Context, username, password string) (model *TokenResponse, err error) {
 	values := url.Values{
 		UsernameKey: []string{username},
@@ -184,7 +197,8 @@ func (c *Client) TokenResourceOwnerPasswordCredentials(ctx context.Context, user
 	return c.token(ctx, PasswordKey, values)
 }
 
-// TokenClientCredentials ...
+// TokenClientCredentials 客户端凭证模式获取令牌 / Client credentials grant
+// scope: 授权范围（可选） / Requested scope (optional)
 func (c *Client) TokenClientCredentials(ctx context.Context, scope ...string) (model *TokenResponse, err error) {
 	values := url.Values{}
 	if len(scope) > 0 {
@@ -193,7 +207,8 @@ func (c *Client) TokenClientCredentials(ctx context.Context, scope ...string) (m
 	return c.token(ctx, ClientCredentialsKey, values)
 }
 
-// RefreshToken ...
+// RefreshToken 刷新访问令牌 / Refresh access token using refresh token
+// refreshToken: 刷新令牌 / Refresh token
 func (c *Client) RefreshToken(ctx context.Context, refreshToken string) (model *TokenResponse, err error) {
 	values := url.Values{
 		RefreshTokenKey: []string{refreshToken},
@@ -201,7 +216,8 @@ func (c *Client) RefreshToken(ctx context.Context, refreshToken string) (model *
 	return c.token(ctx, RefreshTokenKey, values)
 }
 
-// TokenDeviceCode ...
+// TokenDeviceCode 设备码模式获取令牌 / Exchange device code for access token (RFC 8628)
+// deviceCode: 设备码 / Device code received from device authorization
 func (c *Client) TokenDeviceCode(ctx context.Context, deviceCode string) (model *TokenResponse, err error) {
 	values := url.Values{
 		ClientIDKey:   []string{c.ID},
@@ -210,7 +226,9 @@ func (c *Client) TokenDeviceCode(ctx context.Context, deviceCode string) (model 
 	return c.token(ctx, DeviceCodeKey, values)
 }
 
-// TokenIntrospect ...
+// TokenIntrospect 令牌内省 / Token introspection (RFC 7662)
+// token: 要检查的令牌 / Token to introspect
+// tokenTypeHint: 令牌类型提示（可选） / Token type hint (optional): access_token or refresh_token
 func (c *Client) TokenIntrospect(ctx context.Context, token string, tokenTypeHint ...string) (introspection *IntrospectionResponse, err error) {
 	values := url.Values{
 		TokenKey: []string{token},
@@ -227,7 +245,9 @@ func (c *Client) TokenIntrospect(ctx context.Context, token string, tokenTypeHin
 	return
 }
 
-// TokenRevocation token撤销
+// TokenRevocation 令牌撤销 / Token revocation (RFC 7009)
+// token: 要撤销的令牌 / Token to revoke
+// tokenTypeHint: 令牌类型提示（可选） / Token type hint (optional): access_token or refresh_token
 func (c *Client) TokenRevocation(ctx context.Context, token string, tokenTypeHint ...string) (introspection *IntrospectionResponse, err error) {
 	values := url.Values{
 		TokenKey: []string{token},
@@ -263,7 +283,7 @@ func (c *Client) do(ctx context.Context, path string, values url.Values, v inter
 	}
 	defer resp.Body.Close()
 	var body []byte
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}

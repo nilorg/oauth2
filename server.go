@@ -34,58 +34,68 @@ func NewServer(opts ...ServerOption) *Server {
 	}
 }
 
-// Init 初始化
+// Init 初始化服务器，验证必要的函数是否已设置，未设置则panic / Initialize server, panic if required functions are not set
+//
+// Deprecated: 推荐使用 InitWithError 方法，它返回错误而不是panic / Use InitWithError instead, which returns error instead of panic
 func (srv *Server) Init(opts ...ServerOption) {
+	if err := srv.InitWithError(opts...); err != nil {
+		panic(err)
+	}
+}
+
+// InitWithError 初始化服务器，验证必要的函数是否已设置，返回错误 / Initialize server, return error if required functions are not set
+func (srv *Server) InitWithError(opts ...ServerOption) error {
 	for _, o := range opts {
 		o(&srv.opts)
 	}
 
 	if srv.VerifyClient == nil {
-		panic(ErrVerifyClientFuncNil)
+		return ErrVerifyClientFuncNil
 	}
 	if srv.VerifyClientID == nil {
-		panic(ErrVerifyClientIDFuncNil)
+		return ErrVerifyClientIDFuncNil
 	}
 	if srv.VerifyPassword == nil {
-		panic(ErrVerifyPasswordFuncNil)
+		return ErrVerifyPasswordFuncNil
 	}
 	if srv.VerifyRedirectURI == nil {
-		panic(ErrVerifyRedirectURIFuncNil)
+		return ErrVerifyRedirectURIFuncNil
 	}
 	if srv.GenerateCode == nil {
-		panic(ErrGenerateCodeFuncNil)
+		return ErrGenerateCodeFuncNil
 	}
 	if srv.VerifyCode == nil {
-		panic(ErrVerifyCodeFuncNil)
+		return ErrVerifyCodeFuncNil
 	}
 	if srv.VerifyScope == nil {
-		panic(ErrVerifyScopeFuncNil)
+		return ErrVerifyScopeFuncNil
 	}
 	if srv.VerifyGrantType == nil {
-		panic(ErrVerifyGrantTypeFuncNil)
+		return ErrVerifyGrantTypeFuncNil
 	}
 	if srv.AccessToken == nil {
-		panic(ErrAccessToken)
+		return ErrAccessToken
 	}
 
 	if srv.opts.DeviceAuthorizationEndpointEnabled {
 		if srv.GenerateDeviceAuthorization == nil {
-			panic(ErrGenerateDeviceAuthorizationFuncNil)
+			return ErrGenerateDeviceAuthorizationFuncNil
 		}
 		if srv.VerifyDeviceCode == nil {
-			panic(ErrVerifyDeviceCodeFuncNil)
+			return ErrVerifyDeviceCodeFuncNil
 		}
 	}
 	if srv.opts.IntrospectEndpointEnabled {
 		if srv.VerifyIntrospectionToken == nil {
-			panic(ErrVerifyIntrospectionTokenFuncNil)
+			return ErrVerifyIntrospectionTokenFuncNil
 		}
 	}
 	if srv.opts.TokenRevocationEnabled {
 		if srv.TokenRevocation == nil {
-			panic(ErrTokenRevocationFuncNil)
+			return ErrTokenRevocationFuncNil
 		}
 	}
+	return nil
 }
 
 // HandleAuthorize 处理Authorize

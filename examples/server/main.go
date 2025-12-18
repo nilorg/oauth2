@@ -95,7 +95,9 @@ func main() {
 		return
 	}
 
-	srv.Init()
+	if err := srv.InitWithError(); err != nil {
+		panic(err)
+	}
 
 	// =============Http Default=============
 	// http.HandleFunc("/authorize", srv.HandleAuthorize)

@@ -40,50 +40,50 @@ var (
 )
 
 var (
-	// ErrVerifyClientFuncNil ...
+	// ErrVerifyClientFuncNil VerifyClient函数未设置 / VerifyClient function is not set
 	ErrVerifyClientFuncNil = errors.New("OAuth2 Server VerifyClient Is Nil")
-	// ErrVerifyClientIDFuncNil ...
+	// ErrVerifyClientIDFuncNil VerifyClientID函数未设置 / VerifyClientID function is not set
 	ErrVerifyClientIDFuncNil = errors.New("OAuth2 Server VerifyClientID Is Nil")
-	// ErrVerifyPasswordFuncNil ...
+	// ErrVerifyPasswordFuncNil VerifyPassword函数未设置 / VerifyPassword function is not set
 	ErrVerifyPasswordFuncNil = errors.New("OAuth2 Server VerifyPassword Is Nil")
-	// ErrVerifyRedirectURIFuncNil ...
+	// ErrVerifyRedirectURIFuncNil VerifyRedirectURI函数未设置 / VerifyRedirectURI function is not set
 	ErrVerifyRedirectURIFuncNil = errors.New("OAuth2 Server VerifyRedirectURI Is Nil")
-	// ErrGenerateCodeFuncNil ...
+	// ErrGenerateCodeFuncNil GenerateCode函数未设置 / GenerateCode function is not set
 	ErrGenerateCodeFuncNil = errors.New("OAuth2 Server GenerateCode Is Nil")
-	// ErrVerifyCodeFuncNil ...
+	// ErrVerifyCodeFuncNil VerifyCode函数未设置 / VerifyCode function is not set
 	ErrVerifyCodeFuncNil = errors.New("OAuth2 Server VerifyCode Is Nil")
-	// ErrVerifyScopeFuncNil ...
+	// ErrVerifyScopeFuncNil VerifyScope函数未设置 / VerifyScope function is not set
 	ErrVerifyScopeFuncNil = errors.New("OAuth2 Server VerifyScope Is Nil")
-	// ErrGenerateAccessTokenFuncNil ...
+	// ErrGenerateAccessTokenFuncNil GenerateAccessToken函数未设置 / GenerateAccessToken function is not set
 	ErrGenerateAccessTokenFuncNil = errors.New("OAuth2 Server GenerateAccessTokenFunc Is Nil")
-	// ErrGenerateDeviceAuthorizationFuncNil ...
+	// ErrGenerateDeviceAuthorizationFuncNil GenerateDeviceAuthorization函数未设置 / GenerateDeviceAuthorization function is not set
 	ErrGenerateDeviceAuthorizationFuncNil = errors.New("OAuth2 Server GenerateDeviceAuthorizationFunc Is Nil")
-	// ErrVerifyDeviceCodeFuncNil ...
+	// ErrVerifyDeviceCodeFuncNil VerifyDeviceCode函数未设置 / VerifyDeviceCode function is not set
 	ErrVerifyDeviceCodeFuncNil = errors.New("OAuth2 Server ErrVerifyDeviceCodeFunc Is Nil")
-	// ErrRefreshAccessTokenFuncNil ...
+	// ErrRefreshAccessTokenFuncNil RefreshAccessToken函数未设置 / RefreshAccessToken function is not set
 	ErrRefreshAccessTokenFuncNil = errors.New("OAuth2 Server ErrRefreshAccessTokenFuncNil Is Nil")
-	// ErrParseAccessTokenFuncNil ...
+	// ErrParseAccessTokenFuncNil ParseAccessToken函数未设置 / ParseAccessToken function is not set
 	ErrParseAccessTokenFuncNil = errors.New("OAuth2 Server ParseAccessTokenFunc Is Nil")
-	// ErrVerifyIntrospectionTokenFuncNil ...
+	// ErrVerifyIntrospectionTokenFuncNil VerifyIntrospectionToken函数未设置 / VerifyIntrospectionToken function is not set
 	ErrVerifyIntrospectionTokenFuncNil = errors.New("OAuth2 Server VerifyIntrospectionToken Is Nil")
-	// ErrTokenRevocationFuncNil ...
+	// ErrTokenRevocationFuncNil TokenRevocation函数未设置 / TokenRevocation function is not set
 	ErrTokenRevocationFuncNil = errors.New("OAuth2 Server TokenRevocation Is Nil")
-	// ErrVerifyGrantTypeFuncNil ...
+	// ErrVerifyGrantTypeFuncNil VerifyGrantType函数未设置 / VerifyGrantType function is not set
 	ErrVerifyGrantTypeFuncNil = errors.New("OAuth2 Server VerifyGrantType Is Nil")
 	// ErrInvalidAccessToken 无效的访问令牌
 	ErrInvalidAccessToken = errors.New("invalid_access_token")
 	// ErrInvalidRedirectURI 无效的RedirectURI
 	ErrInvalidRedirectURI = errors.New("invalid_redirect_uri")
-	// ErrStateValueDidNotMatch ...
+	// ErrStateValueDidNotMatch state值不匹配 / State value did not match
 	ErrStateValueDidNotMatch = errors.New("state value did not match")
-	// ErrMissingAccessToken ...
+	// ErrMissingAccessToken 缺少访问令牌 / Missing access token in request
 	ErrMissingAccessToken = errors.New("missing access token")
-	// ErrAccessToken ...
+	// ErrAccessToken AccessToken接口未设置 / AccessToken interface is not set
 	ErrAccessToken = errors.New("OAuth2 Server AccessToken Is Nil")
 )
 
 var (
-	// Errors ...
+	// Errors 错误映射表，用于从错误字符串查找错误对象 / Error map for looking up error objects from error strings
 	Errors = map[string]error{
 		ErrVerifyClientFuncNil.Error():   ErrVerifyClientFuncNil,
 		ErrInvalidAccessToken.Error():    ErrInvalidAccessToken,
@@ -105,7 +105,7 @@ var (
 		ErrSlowDown.Error():                ErrSlowDown,
 		ErrUnsupportedTokenType.Error():    ErrUnsupportedTokenType,
 	}
-	// ErrStatusCodes ...
+	// ErrStatusCodes 错误对应的HTTP状态码映射表 / HTTP status codes mapping for errors
 	ErrStatusCodes = map[error]int{
 		ErrInvalidRequest:          http.StatusBadRequest,           // 400
 		ErrUnauthorizedClient:      http.StatusUnauthorized,         // 401

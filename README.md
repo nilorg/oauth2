@@ -84,9 +84,9 @@ func main() {
 			err = oauth2.ErrInvalidClient
 			return
 		}
-		basic = &oauth2.ClientBasic{
-			ID:     basic.ID,
-			Secret: pwd,
+		if basic.Secret != pwd {
+			err = oauth2.ErrInvalidClient
+			return
 		}
 		return
 	}
@@ -156,7 +156,9 @@ func main() {
 		return
 	}
 
-	srv.Init()
+	if err := srv.InitWithError(); err != nil {
+		panic(err)
+	}
 
 	// =============Http Default=============
 	// http.HandleFunc("/authorize", srv.HandleAuthorize)

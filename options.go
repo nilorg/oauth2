@@ -15,56 +15,56 @@ type ServerOptions struct {
 // ServerOption 为可选参数赋值的函数
 type ServerOption func(*ServerOptions)
 
-// ServerLogger ...
+// ServerLogger 设置服务器日志记录器 / Set server logger
 func ServerLogger(log Logger) ServerOption {
 	return func(o *ServerOptions) {
 		o.Log = log
 	}
 }
 
-// ServerIssuer ...
+// ServerIssuer 设置JWT颁发者 / Set JWT issuer
 func ServerIssuer(issuer string) ServerOption {
 	return func(o *ServerOptions) {
 		o.Issuer = issuer
 	}
 }
 
-// ServerDeviceAuthorizationEndpointEnabled ...
+// ServerDeviceAuthorizationEndpointEnabled 启用设备授权端点 / Enable device authorization endpoint (RFC 8628)
 func ServerDeviceAuthorizationEndpointEnabled(deviceAuthorizationEndpointEnabled bool) ServerOption {
 	return func(o *ServerOptions) {
 		o.DeviceAuthorizationEndpointEnabled = deviceAuthorizationEndpointEnabled
 	}
 }
 
-// ServerDeviceVerificationURI ...
+// ServerDeviceVerificationURI 设置设备验证URI / Set device verification URI
 func ServerDeviceVerificationURI(deviceVerificationURI string) ServerOption {
 	return func(o *ServerOptions) {
 		o.DeviceVerificationURI = deviceVerificationURI
 	}
 }
 
-// ServerIntrospectEndpointEnabled ...
+// ServerIntrospectEndpointEnabled 启用令牌内省端点 / Enable token introspection endpoint (RFC 7662)
 func ServerIntrospectEndpointEnabled(introspectEndpointEnabled bool) ServerOption {
 	return func(o *ServerOptions) {
 		o.IntrospectEndpointEnabled = introspectEndpointEnabled
 	}
 }
 
-// ServerTokenRevocationEnabled ...
+// ServerTokenRevocationEnabled 启用令牌撤销端点 / Enable token revocation endpoint (RFC 7009)
 func ServerTokenRevocationEnabled(tokenRevocationEnabled bool) ServerOption {
 	return func(o *ServerOptions) {
 		o.TokenRevocationEnabled = tokenRevocationEnabled
 	}
 }
 
-// ServerCustomGrantTypeEnabled ...
+// ServerCustomGrantTypeEnabled 启用自定义授权类型 / Enable custom grant types
 func ServerCustomGrantTypeEnabled(customGrantTypeEnabled bool) ServerOption {
 	return func(o *ServerOptions) {
 		o.CustomGrantTypeEnabled = customGrantTypeEnabled
 	}
 }
 
-// ServerCustomGrantTypeAuthentication ...
+// ServerCustomGrantTypeAuthentication 设置自定义授权类型认证函数 / Set custom grant type authentication functions
 func ServerCustomGrantTypeAuthentication(customGrantTypeAuthentication map[string]CustomGrantTypeAuthenticationFunc) ServerOption {
 	return func(o *ServerOptions) {
 		o.CustomGrantTypeAuthentication = customGrantTypeAuthentication
