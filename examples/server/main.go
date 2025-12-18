@@ -23,9 +23,9 @@ func main() {
 			err = oauth2.ErrInvalidClient
 			return
 		}
-		basic = &oauth2.ClientBasic{
-			ID:     basic.ID,
-			Secret: pwd,
+		if basic.Secret != pwd {
+			err = oauth2.ErrInvalidClient
+			return
 		}
 		return
 	}

@@ -107,12 +107,13 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if responseType == CodeKey {
+	switch responseType {
+	case CodeKey:
 		if err = srv.VerifyGrantType(ctx, clientID, AuthorizationCodeKey); err != nil {
 			RedirectError(w, r, redirectURI, err)
 			return
 		}
-	} else if responseType == TokenKey {
+	case TokenKey:
 		if err = srv.VerifyGrantType(ctx, clientID, ImplicitKey); err != nil {
 			RedirectError(w, r, redirectURI, err)
 			return
@@ -309,7 +310,8 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if grantType == RefreshTokenKey {
+	switch grantType {
+	case RefreshTokenKey:
 		refreshToken := r.PostFormValue(RefreshTokenKey)
 		model, err := srv.AccessToken.Refresh(ctx, reqClientBasic.ID, refreshToken)
 		if err != nil {
@@ -317,7 +319,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 		} else {
 			WriterJSON(w, model)
 		}
-	} else if grantType == AuthorizationCodeKey {
+	case AuthorizationCodeKey:
 		code := r.PostFormValue(CodeKey)
 		redirectURIStr := r.PostFormValue(RedirectURIKey)
 		if clientID == "" {
@@ -334,7 +336,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 		} else {
 			WriterJSON(w, model)
 		}
-	} else if grantType == PasswordKey {
+	case PasswordKey:
 		username := r.PostFormValue(UsernameKey)
 		password := r.PostFormValue(PasswordKey)
 		if username == "" || password == "" {
@@ -348,14 +350,14 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 		} else {
 			WriterJSON(w, model)
 		}
-	} else if grantType == ClientCredentialsKey {
+	case ClientCredentialsKey:
 		model, err := srv.tokenClientCredentials(ctx, reqClientBasic, scope)
 		if err != nil {
 			WriterError(w, err)
 		} else {
 			WriterJSON(w, model)
 		}
-	} else if grantType == UrnIetfParamsOAuthGrantTypeDeviceCodeKey || grantType == DeviceCodeKey { // https://tools.ietf.org/html/rfc8628#section-3.4
+	case UrnIetfParamsOAuthGrantTypeDeviceCodeKey, DeviceCodeKey: // https://tools.ietf.org/html/rfc8628#section-3.4
 		deviceCode := r.PostFormValue(DeviceCodeKey)
 		clientID := r.PostFormValue(ClientIDKey)
 		model, err := srv.tokenDeviceCode(ctx, clientID, deviceCode)
@@ -364,7 +366,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 		} else {
 			WriterJSON(w, model)
 		}
-	} else {
+	default:
 		if srv.opts.CustomGrantTypeEnabled {
 			custom, ok := srv.opts.CustomGrantTypeAuthentication[grantType]
 			if ok {

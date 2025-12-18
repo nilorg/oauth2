@@ -157,7 +157,7 @@ func (c *Client) token(ctx context.Context, grantType string, values url.Values)
 	}
 	defer resp.Body.Close()
 	var body []byte
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
