@@ -100,13 +100,16 @@ func (srv *Server) InitWithError(opts ...ServerOption) error {
 
 // HandleAuthorize 处理Authorize
 func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx := NewIssuerRequestContext(r.Context(), srv.opts.GetIssuerRequest(r))
 	// 判断参数
 	responseType := r.FormValue(ResponseTypeKey)
 	clientID := r.FormValue(ClientIDKey)
 	scope := r.FormValue(ScopeKey)
 	state := r.FormValue(StateKey)
 	redirectURIStr := r.FormValue(RedirectURIKey)
+	// PKCE 参数 (RFC 7636)
+	codeChallenge := r.FormValue(CodeChallengeKey)
+	codeChallengeMethod := r.FormValue(CodeChallengeMethodKey)
 	redirectURI, err := url.Parse(redirectURIStr)
 	if err != nil {
 		WriterError(w, ErrInvalidRequest)
@@ -150,7 +153,7 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	switch responseType {
 	case CodeKey:
 		var code string
-		code, err = srv.authorizeAuthorizationCode(ctx, clientID, redirectURIStr, scope, openID)
+		code, err = srv.authorizeAuthorizationCode(ctx, clientID, redirectURIStr, scope, openID, codeChallenge, codeChallengeMethod)
 		if err != nil {
 			RedirectError(w, r, redirectURI, err)
 		} else {
@@ -172,7 +175,7 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 // HandleDeviceAuthorization 处理DeviceAuthorization
 // https://tools.ietf.org/html/rfc8628#section-3.1
 func (srv *Server) HandleDeviceAuthorization(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx := NewIssuerRequestContext(r.Context(), srv.opts.GetIssuerRequest(r))
 	// 判断参数
 	clientID := r.FormValue(ClientIDKey)
 	if clientID == "" {
@@ -203,7 +206,7 @@ func (srv *Server) HandleDeviceAuthorization(w http.ResponseWriter, r *http.Requ
 // HandleTokenIntrospection 处理内省端点
 // https://tools.ietf.org/html/rfc7662#section-2.1
 func (srv *Server) HandleTokenIntrospection(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx := NewIssuerRequestContext(r.Context(), srv.opts.GetIssuerRequest(r))
 	var reqClientBasic *ClientBasic
 	var err error
 	reqClientBasic, err = RequestClientBasic(r)
@@ -235,7 +238,7 @@ func (srv *Server) HandleTokenIntrospection(w http.ResponseWriter, r *http.Reque
 // HandleTokenRevocation 处理Token销毁
 // https://tools.ietf.org/html/rfc7009
 func (srv *Server) HandleTokenRevocation(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx := NewIssuerRequestContext(r.Context(), srv.opts.GetIssuerRequest(r))
 	var reqClientBasic *ClientBasic
 	var err error
 	reqClientBasic, err = RequestClientBasic(r)
@@ -271,7 +274,7 @@ func (srv *Server) HandleTokenRevocation(w http.ResponseWriter, r *http.Request)
 
 // HandleToken 处理Token
 func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx := NewIssuerRequestContext(r.Context(), srv.opts.GetIssuerRequest(r))
 	grantType := r.PostFormValue(GrantTypeKey)
 	if grantType == "" {
 		WriterError(w, ErrInvalidRequest)
@@ -332,6 +335,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 	case AuthorizationCodeKey:
 		code := r.PostFormValue(CodeKey)
 		redirectURIStr := r.PostFormValue(RedirectURIKey)
+		codeVerifier := r.PostFormValue(CodeVerifierKey) // PKCE code_verifier
 		if clientID == "" {
 			clientID = r.PostFormValue(ClientIDKey)
 		}
@@ -340,7 +344,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var model *TokenResponse
-		model, err = srv.tokenAuthorizationCode(ctx, reqClientBasic, clientID, code, redirectURIStr)
+		model, err = srv.tokenAuthorizationCode(ctx, reqClientBasic, clientID, code, redirectURIStr, codeVerifier)
 		if err != nil {
 			WriterError(w, err)
 		} else {
@@ -394,11 +398,11 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 }
 
 // 授权码（authorization-code）
-func (srv *Server) authorizeAuthorizationCode(ctx context.Context, clientID, redirectURI, scope, openID string) (code string, err error) {
-	return srv.GenerateCode(ctx, clientID, openID, redirectURI, StringSplit(scope, " "))
+func (srv *Server) authorizeAuthorizationCode(ctx context.Context, clientID, redirectURI, scope, openID, codeChallenge, codeChallengeMethod string) (code string, err error) {
+	return srv.GenerateCode(ctx, clientID, openID, redirectURI, StringSplit(scope, " "), codeChallenge, codeChallengeMethod)
 }
 
-func (srv *Server) tokenAuthorizationCode(ctx context.Context, client *ClientBasic, clientID, code, redirectURI string) (token *TokenResponse, err error) {
+func (srv *Server) tokenAuthorizationCode(ctx context.Context, client *ClientBasic, clientID, code, redirectURI, codeVerifier string) (token *TokenResponse, err error) {
 	if client.ID != clientID {
 		err = ErrInvalidClient
 		return
@@ -408,20 +412,32 @@ func (srv *Server) tokenAuthorizationCode(ctx context.Context, client *ClientBas
 	if err != nil {
 		return
 	}
+	// 验证 CodeValue.ClientID 与请求的 clientID 是否匹配 (RFC 6749 Section 4.1.3)
+	// Verify CodeValue.ClientID matches the requesting clientID
+	if value.ClientID != clientID {
+		err = ErrInvalidGrant
+		return
+	}
+	// PKCE 验证 (RFC 7636 Section 4.6)
+	// 如果授权请求包含 code_challenge，则必须验证 code_verifier
+	if !VerifyCodeChallenge(value.CodeChallenge, value.CodeChallengeMethod, codeVerifier) {
+		err = ErrInvalidGrant
+		return
+	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, client.ID, scope, value.OpenID, value)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.GetIssuerFromContext(ctx), client.ID, scope, value.OpenID, value)
 	return
 }
 
 // 隐藏式（implicit）
 func (srv *Server) authorizeImplicit(ctx context.Context, clientID, scope, openID string) (token *TokenResponse, err error) {
-	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, clientID, scope, openID, nil)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.GetIssuerFromContext(ctx), clientID, scope, openID, nil)
 	return
 }
 
 // 设备模式（Device Code）
 func (srv *Server) authorizeDeviceCode(ctx context.Context, clientID, scope string) (resp *DeviceAuthorizationResponse, err error) {
-	resp, err = srv.GenerateDeviceAuthorization(ctx, srv.opts.Issuer, srv.opts.DeviceVerificationURI, clientID, StringSplit(scope, " "))
+	resp, err = srv.GenerateDeviceAuthorization(ctx, srv.opts.GetIssuerFromContext(ctx), srv.opts.DeviceVerificationURI, clientID, StringSplit(scope, " "))
 	return
 }
 
@@ -432,7 +448,7 @@ func (srv *Server) tokenResourceOwnerPasswordCredentials(ctx context.Context, cl
 	if err != nil {
 		return
 	}
-	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, client.ID, scope, openID, nil)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.GetIssuerFromContext(ctx), client.ID, scope, openID, nil)
 	return
 }
 
@@ -443,13 +459,13 @@ func (srv *Server) generateCustomGrantTypeAccessToken(ctx context.Context, clien
 	if err != nil {
 		return
 	}
-	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, client.ID, scope, openID, nil)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.GetIssuerFromContext(ctx), client.ID, scope, openID, nil)
 	return
 }
 
 // 客户端凭证（client credentials）
 func (srv *Server) tokenClientCredentials(ctx context.Context, client *ClientBasic, scope string) (token *TokenResponse, err error) {
-	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, client.ID, scope, "", nil)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.GetIssuerFromContext(ctx), client.ID, scope, "", nil)
 	return
 }
 
@@ -461,6 +477,6 @@ func (srv *Server) tokenDeviceCode(ctx context.Context, clientID, deviceCode str
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
-	token, err = srv.AccessToken.Generate(ctx, srv.opts.Issuer, clientID, scope, value.OpenID, nil)
+	token, err = srv.AccessToken.Generate(ctx, srv.opts.GetIssuerFromContext(ctx), clientID, scope, value.OpenID, nil)
 	return
 }

@@ -1,6 +1,8 @@
 package oauth2
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -104,4 +106,54 @@ func StringSplit(s, sep string) (results []string) {
 		}
 	}
 	return
+}
+
+// VerifyCodeChallenge 验证 PKCE code_verifier (RFC 7636 Section 4.6)
+// Verify PKCE code_verifier against code_challenge
+func VerifyCodeChallenge(codeChallenge, codeChallengeMethod, codeVerifier string) bool {
+	if codeChallenge == "" {
+		// 没有 code_challenge，无需验证
+		// No code_challenge, no verification needed
+		return true
+	}
+	if codeVerifier == "" {
+		// 有 code_challenge 但没有 code_verifier，验证失败
+		// Has code_challenge but no code_verifier, verification fails
+		return false
+	}
+
+	switch codeChallengeMethod {
+	case CodeChallengeMethodS256, "": // S256 是默认方法 / S256 is the default method
+		// code_challenge = BASE64URL(SHA256(code_verifier))
+		hash := sha256.Sum256([]byte(codeVerifier))
+		computed := base64.RawURLEncoding.EncodeToString(hash[:])
+		return codeChallenge == computed
+	case CodeChallengeMethodPlain:
+		// code_challenge = code_verifier
+		return codeChallenge == codeVerifier
+	default:
+		// 不支持的方法
+		// Unsupported method
+		return false
+	}
+}
+
+// GenerateCodeChallenge 生成 PKCE code_challenge (RFC 7636)
+// Generate PKCE code_challenge from code_verifier
+func GenerateCodeChallenge(codeVerifier, method string) string {
+	switch method {
+	case CodeChallengeMethodS256, "":
+		hash := sha256.Sum256([]byte(codeVerifier))
+		return base64.RawURLEncoding.EncodeToString(hash[:])
+	case CodeChallengeMethodPlain:
+		return codeVerifier
+	default:
+		return ""
+	}
+}
+
+// RandomCodeVerifier 生成随机 PKCE code_verifier (RFC 7636 Section 4.1)
+// Generate random PKCE code_verifier (43-128 characters)
+func RandomCodeVerifier() string {
+	return random.AZaz09(43)
 }

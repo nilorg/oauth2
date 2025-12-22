@@ -231,3 +231,16 @@ func ParseJwtStandardClaimsToken(token string, algorithm string, key interface{}
 func ParseHS256JwtClaimsToken(token string, jwtVerifyKey []byte) (claims *JwtClaims, err error) {
 	return ParseJwtClaimsToken(token, "HS256", jwtVerifyKey)
 }
+
+// ParseHS256JwtClaimsTokenUnverified 解析JWT Token但不验证签名，用于先获取issuer
+// Parse JWT Token without verifying signature, used to get issuer first
+func ParseHS256JwtClaimsTokenUnverified(token string) (claims *JwtClaims, err error) {
+	parsedJwt, parseErr := jwt.ParseSigned(token, []jose.SignatureAlgorithm{jose.HS256})
+	if parseErr != nil {
+		err = parseErr
+		return
+	}
+	claims = new(JwtClaims)
+	err = parsedJwt.UnsafeClaimsWithoutVerification(claims)
+	return
+}
