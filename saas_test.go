@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 // 测试用密钥（HS256 需要 32 字节密钥）
@@ -1031,5 +1032,193 @@ func TestTokenResponse_Fields(t *testing.T) {
 	}
 	if token.Scope != "read write" {
 		t.Errorf("Scope = %v, want %v", token.Scope, "read write")
+	}
+}
+
+// ==================== JWT Token 函数测试 ====================
+
+func TestNewJwtToken(t *testing.T) {
+	claims := NewJwtClaims("https://issuer.com", "client1", "read", "user1")
+
+	token, err := NewJwtToken(claims, "HS256", testJwtKey)
+	if err != nil {
+		t.Fatalf("NewJwtToken() error = %v", err)
+	}
+	if token == "" {
+		t.Error("NewJwtToken() returned empty token")
+	}
+}
+
+func TestNewJwtClaimsToken(t *testing.T) {
+	claims := NewJwtClaims("https://issuer.com", "client1", "read", "user1")
+
+	token, err := NewJwtClaimsToken(claims, "HS256", testJwtKey)
+	if err != nil {
+		t.Fatalf("NewJwtClaimsToken() error = %v", err)
+	}
+	if token == "" {
+		t.Error("NewJwtClaimsToken() returned empty token")
+	}
+
+	// 验证可以解析
+	parsed, err := ParseJwtClaimsToken(token, "HS256", testJwtKey)
+	if err != nil {
+		t.Fatalf("ParseJwtClaimsToken() error = %v", err)
+	}
+	if parsed.Issuer != "https://issuer.com" {
+		t.Errorf("Parsed Issuer = %v, want %v", parsed.Issuer, "https://issuer.com")
+	}
+}
+
+func TestNewJwtStandardClaimsToken(t *testing.T) {
+	claims := &JwtStandardClaims{
+		Issuer:   "https://issuer.com",
+		Subject:  "user1",
+		Audience: []string{"client1"},
+	}
+
+	token, err := NewJwtStandardClaimsToken(claims, "HS256", testJwtKey)
+	if err != nil {
+		t.Fatalf("NewJwtStandardClaimsToken() error = %v", err)
+	}
+	if token == "" {
+		t.Error("NewJwtStandardClaimsToken() returned empty token")
+	}
+
+	// 验证可以解析
+	parsed, err := ParseJwtStandardClaimsToken(token, "HS256", testJwtKey)
+	if err != nil {
+		t.Fatalf("ParseJwtStandardClaimsToken() error = %v", err)
+	}
+	if parsed.Issuer != "https://issuer.com" {
+		t.Errorf("Parsed Issuer = %v, want %v", parsed.Issuer, "https://issuer.com")
+	}
+}
+
+func TestParseJwtStandardClaimsToken(t *testing.T) {
+	claims := &JwtStandardClaims{
+		Issuer:   "https://test.com",
+		Subject:  "subject123",
+		Audience: []string{"aud1", "aud2"},
+	}
+
+	token, err := NewJwtStandardClaimsToken(claims, "HS256", testJwtKey)
+	if err != nil {
+		t.Fatalf("NewJwtStandardClaimsToken() error = %v", err)
+	}
+
+	parsed, err := ParseJwtStandardClaimsToken(token, "HS256", testJwtKey)
+	if err != nil {
+		t.Fatalf("ParseJwtStandardClaimsToken() error = %v", err)
+	}
+
+	if parsed.Subject != "subject123" {
+		t.Errorf("Subject = %v, want %v", parsed.Subject, "subject123")
+	}
+	if len(parsed.Audience) != 2 {
+		t.Errorf("Audience length = %v, want 2", len(parsed.Audience))
+	}
+}
+
+func TestParseJwtClaimsToken_InvalidToken(t *testing.T) {
+	_, err := ParseJwtClaimsToken("invalid.token.here", "HS256", testJwtKey)
+	if err == nil {
+		t.Error("ParseJwtClaimsToken() should return error for invalid token")
+	}
+}
+
+func TestParseJwtClaimsToken_WrongKey(t *testing.T) {
+	claims := NewJwtClaims("https://issuer.com", "client1", "read", "user1")
+	token, _ := NewJwtClaimsToken(claims, "HS256", testJwtKey)
+
+	_, err := ParseJwtClaimsToken(token, "HS256", testWrongKey)
+	if err == nil {
+		t.Error("ParseJwtClaimsToken() should return error for wrong key")
+	}
+}
+
+// ==================== JwtClaims.Valid 边界测试 ====================
+
+func TestJwtClaims_Valid_AllConditions(t *testing.T) {
+	tests := []struct {
+		name      string
+		claims    *JwtClaims
+		wantValid bool
+	}{
+		{
+			name: "所有条件都满足",
+			claims: &JwtClaims{
+				JwtStandardClaims: JwtStandardClaims{
+					Issuer:    "https://issuer.com",
+					Audience:  []string{"client1"},
+					ExpiresAt: time.Now().Add(3600 * time.Second).Unix(),
+					NotBefore: time.Now().Add(-60 * time.Second).Unix(),
+					IssuedAt:  time.Now().Add(-60 * time.Second).Unix(),
+				},
+				Scope: "read",
+			},
+			wantValid: true,
+		},
+		{
+			name: "已过期",
+			claims: &JwtClaims{
+				JwtStandardClaims: JwtStandardClaims{
+					Issuer:    "https://issuer.com",
+					Audience:  []string{"client1"},
+					ExpiresAt: time.Now().Add(-3600 * time.Second).Unix(), // 已过期
+				},
+				Scope: "read",
+			},
+			wantValid: false,
+		},
+		{
+			name: "尚未生效",
+			claims: &JwtClaims{
+				JwtStandardClaims: JwtStandardClaims{
+					Issuer:    "https://issuer.com",
+					Audience:  []string{"client1"},
+					ExpiresAt: time.Now().Add(3600 * time.Second).Unix(),
+					NotBefore: time.Now().Add(3600 * time.Second).Unix(), // 未来才生效
+				},
+				Scope: "read",
+			},
+			wantValid: false,
+		},
+		{
+			name: "IssuedAt在未来",
+			claims: &JwtClaims{
+				JwtStandardClaims: JwtStandardClaims{
+					Issuer:    "https://issuer.com",
+					Audience:  []string{"client1"},
+					ExpiresAt: time.Now().Add(3600 * time.Second).Unix(),
+					IssuedAt:  time.Now().Add(3600 * time.Second).Unix(), // 未来颁发
+				},
+				Scope: "read",
+			},
+			wantValid: false,
+		},
+		{
+			// Valid() 只验证时间，不验证 Issuer/Audience/Scope
+			name: "缺少Issuer仍然有效(时间验证通过)",
+			claims: &JwtClaims{
+				JwtStandardClaims: JwtStandardClaims{
+					Issuer:    "",
+					Audience:  []string{"client1"},
+					ExpiresAt: time.Now().Add(3600 * time.Second).Unix(),
+				},
+				Scope: "read",
+			},
+			wantValid: true, // Valid() 只验证时间相关
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.claims.Valid()
+			isValid := err == nil
+			if isValid != tt.wantValid {
+				t.Errorf("Valid() = %v, want %v, err = %v", isValid, tt.wantValid, err)
+			}
+		})
 	}
 }
