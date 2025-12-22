@@ -71,7 +71,7 @@ func newTestServer(t *testing.T) *Server {
 		return ErrInvalidRedirectURI
 	}
 
-	srv.GenerateCode = func(ctx context.Context, clientID, openID, redirectURI string, scope []string) (string, error) {
+	srv.GenerateCode = func(ctx context.Context, clientID, openID, redirectURI string, scope []string, codeChallenge, codeChallengeMethod string) (string, error) {
 		return mockCode, nil
 	}
 
@@ -570,7 +570,7 @@ func TestServer_HandleToken_AuthorizationCode_ClientMismatch(t *testing.T) {
 	srv.VerifyCode = func(ctx context.Context, code, clientID, redirectURI string) (*CodeValue, error) {
 		if code == mockCode {
 			return &CodeValue{
-				ClientID:    "original_client", // 授权码是为这个 client 生成的
+				ClientID:    "original_client", // 授权码是为另一个 client 生成的
 				OpenID:      mockOpenID,
 				RedirectURI: redirectURI,
 				Scope:       []string{"read", "write"},
@@ -592,22 +592,21 @@ func TestServer_HandleToken_AuthorizationCode_ClientMismatch(t *testing.T) {
 
 	srv.HandleToken(w, req)
 
-	// 由于代码中不检查 CodeValue.ClientID，实际会返回成功
-	// 这测试验证当前行为
-	if w.Code != http.StatusOK {
-		t.Errorf("HandleToken() status = %v, want %v (current implementation doesn't verify CodeValue.ClientID)", w.Code, http.StatusOK)
+	// 验证 CodeValue.ClientID 不匹配时应返回 400 invalid_grant
+	// Verify returns 400 invalid_grant when CodeValue.ClientID doesn't match
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("HandleToken() status = %v, want %v", w.Code, http.StatusBadRequest)
+	}
+	var errResp ErrorResponse
+	json.Unmarshal(w.Body.Bytes(), &errResp)
+	if errResp.Error != ErrInvalidGrant.Error() {
+		t.Errorf("HandleToken() error = %v, want %v", errResp.Error, ErrInvalidGrant.Error())
 	}
 }
 
 func TestServer_HandleToken_RefreshToken_Success(t *testing.T) {
 	srv := newTestServer(t)
-	// 修改 VerifyPassword 使 openID = clientID，这样 refresh token 验证才能通过
-	srv.VerifyPassword = func(ctx context.Context, clientID, username, password string) (string, error) {
-		if username == "testuser" && password == "testpass" {
-			return clientID, nil // 返回 clientID 作为 openID
-		}
-		return "", ErrInvalidGrant
-	}
+	// 现在 refresh token 验证使用 Audience (clientID)，不再需要 openID == clientID
 	srv.InitWithError()
 
 	// 使用 password grant 获取 token
@@ -1197,5 +1196,302 @@ func TestServer_HandleDeviceAuthorization_VerifyScopeFail(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("HandleDeviceAuthorization() status = %v, want %v", w.Code, http.StatusBadRequest)
+	}
+}
+
+// ==================== PKCE 测试 (RFC 7636) ====================
+
+func TestServer_HandleAuthorize_PKCE(t *testing.T) {
+	srv := newTestServer(t)
+	var savedCodeChallenge, savedCodeChallengeMethod string
+	srv.GenerateCode = func(ctx context.Context, clientID, openID, redirectURI string, scope []string, codeChallenge, codeChallengeMethod string) (string, error) {
+		savedCodeChallenge = codeChallenge
+		savedCodeChallengeMethod = codeChallengeMethod
+		return mockCode, nil
+	}
+	srv.InitWithError()
+
+	codeVerifier := RandomCodeVerifier()
+	codeChallenge := GenerateCodeChallenge(codeVerifier, CodeChallengeMethodS256)
+
+	req := httptest.NewRequest(http.MethodGet, "/authorize?response_type=code&client_id="+mockClientID+
+		"&redirect_uri="+url.QueryEscape(mockRedirectURI)+
+		"&scope=read&state=xyz&code_challenge="+codeChallenge+"&code_challenge_method=S256", nil)
+	ctx := NewOpenIDContext(req.Context(), mockOpenID)
+	req = req.WithContext(ctx)
+	w := httptest.NewRecorder()
+
+	srv.HandleAuthorize(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("HandleAuthorize() status = %v, want %v", w.Code, http.StatusFound)
+	}
+	if savedCodeChallenge != codeChallenge {
+		t.Errorf("GenerateCode() codeChallenge = %v, want %v", savedCodeChallenge, codeChallenge)
+	}
+	if savedCodeChallengeMethod != CodeChallengeMethodS256 {
+		t.Errorf("GenerateCode() codeChallengeMethod = %v, want %v", savedCodeChallengeMethod, CodeChallengeMethodS256)
+	}
+}
+
+func TestServer_HandleToken_AuthorizationCode_PKCE_Success(t *testing.T) {
+	srv := newTestServer(t)
+	codeVerifier := RandomCodeVerifier()
+	codeChallenge := GenerateCodeChallenge(codeVerifier, CodeChallengeMethodS256)
+
+	srv.VerifyCode = func(ctx context.Context, code, clientID, redirectURI string) (*CodeValue, error) {
+		if code == mockCode {
+			return &CodeValue{
+				ClientID:            clientID,
+				OpenID:              mockOpenID,
+				RedirectURI:         redirectURI,
+				Scope:               []string{"read", "write"},
+				CodeChallenge:       codeChallenge,
+				CodeChallengeMethod: CodeChallengeMethodS256,
+			}, nil
+		}
+		return nil, ErrInvalidGrant
+	}
+	srv.InitWithError()
+
+	body := url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {mockCode},
+		"redirect_uri":  {mockRedirectURI},
+		"client_id":     {mockClientID},
+		"code_verifier": {codeVerifier},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(body.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(mockClientID, mockClientSecret)
+	w := httptest.NewRecorder()
+
+	srv.HandleToken(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("HandleToken() status = %v, want %v, body: %s", w.Code, http.StatusOK, w.Body.String())
+	}
+}
+
+func TestServer_HandleToken_AuthorizationCode_PKCE_InvalidVerifier(t *testing.T) {
+	srv := newTestServer(t)
+	codeVerifier := RandomCodeVerifier()
+	codeChallenge := GenerateCodeChallenge(codeVerifier, CodeChallengeMethodS256)
+
+	srv.VerifyCode = func(ctx context.Context, code, clientID, redirectURI string) (*CodeValue, error) {
+		if code == mockCode {
+			return &CodeValue{
+				ClientID:            clientID,
+				OpenID:              mockOpenID,
+				RedirectURI:         redirectURI,
+				Scope:               []string{"read", "write"},
+				CodeChallenge:       codeChallenge,
+				CodeChallengeMethod: CodeChallengeMethodS256,
+			}, nil
+		}
+		return nil, ErrInvalidGrant
+	}
+	srv.InitWithError()
+
+	body := url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {mockCode},
+		"redirect_uri":  {mockRedirectURI},
+		"client_id":     {mockClientID},
+		"code_verifier": {"wrong_verifier"}, // 错误的 verifier
+	}
+	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(body.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(mockClientID, mockClientSecret)
+	w := httptest.NewRecorder()
+
+	srv.HandleToken(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("HandleToken() status = %v, want %v", w.Code, http.StatusBadRequest)
+	}
+	var errResp ErrorResponse
+	json.Unmarshal(w.Body.Bytes(), &errResp)
+	if errResp.Error != ErrInvalidGrant.Error() {
+		t.Errorf("HandleToken() error = %v, want %v", errResp.Error, ErrInvalidGrant.Error())
+	}
+}
+
+func TestServer_HandleToken_AuthorizationCode_PKCE_MissingVerifier(t *testing.T) {
+	srv := newTestServer(t)
+	codeVerifier := RandomCodeVerifier()
+	codeChallenge := GenerateCodeChallenge(codeVerifier, CodeChallengeMethodS256)
+
+	srv.VerifyCode = func(ctx context.Context, code, clientID, redirectURI string) (*CodeValue, error) {
+		if code == mockCode {
+			return &CodeValue{
+				ClientID:            clientID,
+				OpenID:              mockOpenID,
+				RedirectURI:         redirectURI,
+				Scope:               []string{"read", "write"},
+				CodeChallenge:       codeChallenge,
+				CodeChallengeMethod: CodeChallengeMethodS256,
+			}, nil
+		}
+		return nil, ErrInvalidGrant
+	}
+	srv.InitWithError()
+
+	// 不提供 code_verifier
+	body := url.Values{
+		"grant_type":   {"authorization_code"},
+		"code":         {mockCode},
+		"redirect_uri": {mockRedirectURI},
+		"client_id":    {mockClientID},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(body.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(mockClientID, mockClientSecret)
+	w := httptest.NewRecorder()
+
+	srv.HandleToken(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("HandleToken() status = %v, want %v", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestServer_HandleToken_AuthorizationCode_PKCE_Plain(t *testing.T) {
+	srv := newTestServer(t)
+	codeVerifier := RandomCodeVerifier()
+
+	srv.VerifyCode = func(ctx context.Context, code, clientID, redirectURI string) (*CodeValue, error) {
+		if code == mockCode {
+			return &CodeValue{
+				ClientID:            clientID,
+				OpenID:              mockOpenID,
+				RedirectURI:         redirectURI,
+				Scope:               []string{"read", "write"},
+				CodeChallenge:       codeVerifier, // plain 方法下 challenge == verifier
+				CodeChallengeMethod: CodeChallengeMethodPlain,
+			}, nil
+		}
+		return nil, ErrInvalidGrant
+	}
+	srv.InitWithError()
+
+	body := url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {mockCode},
+		"redirect_uri":  {mockRedirectURI},
+		"client_id":     {mockClientID},
+		"code_verifier": {codeVerifier},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(body.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(mockClientID, mockClientSecret)
+	w := httptest.NewRecorder()
+
+	srv.HandleToken(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("HandleToken() status = %v, want %v, body: %s", w.Code, http.StatusOK, w.Body.String())
+	}
+}
+
+// ==================== client_credentials refresh 测试 ====================
+
+func TestServer_HandleToken_ClientCredentials_RefreshToken_Success(t *testing.T) {
+	srv := newTestServer(t)
+	srv.InitWithError()
+
+	// 使用 client_credentials 获取 token（openID 为空）
+	body := url.Values{
+		"grant_type": {"client_credentials"},
+		"scope":      {"read"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(body.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(mockClientID, mockClientSecret)
+	w := httptest.NewRecorder()
+	srv.HandleToken(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("HandleToken(client_credentials) status = %v, want %v, body: %s", w.Code, http.StatusOK, w.Body.String())
+	}
+
+	var tokenResp TokenResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &tokenResp); err != nil {
+		t.Fatalf("Failed to unmarshal token response: %v", err)
+	}
+
+	if tokenResp.RefreshToken == "" {
+		t.Fatal("Expected refresh_token in response")
+	}
+
+	// 使用 refresh_token 刷新 - 现在应该成功
+	body = url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {tokenResp.RefreshToken},
+	}
+	req = httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(body.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(mockClientID, mockClientSecret)
+	w = httptest.NewRecorder()
+
+	srv.HandleToken(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("HandleToken(refresh_token) status = %v, want %v, body: %s", w.Code, http.StatusOK, w.Body.String())
+	}
+
+	var refreshResp TokenResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &refreshResp); err != nil {
+		t.Fatalf("Failed to unmarshal refresh response: %v", err)
+	}
+	if refreshResp.AccessToken == "" {
+		t.Error("HandleToken(refresh_token) should return new access_token")
+	}
+}
+
+func TestServer_HandleToken_RefreshToken_WrongClient(t *testing.T) {
+	srv := newTestServer(t)
+	srv.VerifyClient = func(ctx context.Context, basic *ClientBasic) error {
+		// 允许多个客户端
+		if basic.ID == mockClientID || basic.ID == "other_client" {
+			return nil
+		}
+		return ErrInvalidClient
+	}
+	srv.InitWithError()
+
+	// 使用 client_credentials 获取 token
+	body := url.Values{
+		"grant_type": {"client_credentials"},
+		"scope":      {"read"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(body.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(mockClientID, mockClientSecret)
+	w := httptest.NewRecorder()
+	srv.HandleToken(w, req)
+
+	var tokenResp TokenResponse
+	json.Unmarshal(w.Body.Bytes(), &tokenResp)
+
+	// 使用另一个客户端尝试刷新 - 应该失败
+	body = url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {tokenResp.RefreshToken},
+	}
+	req = httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(body.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("other_client", "secret")
+	w = httptest.NewRecorder()
+
+	srv.HandleToken(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("HandleToken(refresh_token with wrong client) status = %v, want %v", w.Code, http.StatusBadRequest)
+	}
+	var errResp ErrorResponse
+	json.Unmarshal(w.Body.Bytes(), &errResp)
+	if errResp.Error != ErrUnauthorizedClient.Error() {
+		t.Errorf("HandleToken() error = %v, want %v", errResp.Error, ErrUnauthorizedClient.Error())
 	}
 }

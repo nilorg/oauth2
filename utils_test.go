@@ -232,6 +232,117 @@ func TestStringSplit(t *testing.T) {
 	}
 }
 
+// PKCE 测试 (RFC 7636)
+
+func TestVerifyCodeChallenge_S256(t *testing.T) {
+	// 使用 RFC 7636 附录 B 中的示例
+	codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	// S256: BASE64URL(SHA256(code_verifier))
+	codeChallenge := GenerateCodeChallenge(codeVerifier, CodeChallengeMethodS256)
+
+	if !VerifyCodeChallenge(codeChallenge, CodeChallengeMethodS256, codeVerifier) {
+		t.Error("VerifyCodeChallenge(S256) should return true for valid code_verifier")
+	}
+
+	// 错误的 code_verifier
+	if VerifyCodeChallenge(codeChallenge, CodeChallengeMethodS256, "wrong_verifier") {
+		t.Error("VerifyCodeChallenge(S256) should return false for invalid code_verifier")
+	}
+}
+
+func TestVerifyCodeChallenge_Plain(t *testing.T) {
+	codeVerifier := "test_code_verifier_1234567890"
+	codeChallenge := codeVerifier // plain 方法下 challenge == verifier
+
+	if !VerifyCodeChallenge(codeChallenge, CodeChallengeMethodPlain, codeVerifier) {
+		t.Error("VerifyCodeChallenge(plain) should return true for matching verifier")
+	}
+
+	if VerifyCodeChallenge(codeChallenge, CodeChallengeMethodPlain, "wrong_verifier") {
+		t.Error("VerifyCodeChallenge(plain) should return false for non-matching verifier")
+	}
+}
+
+func TestVerifyCodeChallenge_NoChallenge(t *testing.T) {
+	// 没有 code_challenge 时，验证应通过
+	if !VerifyCodeChallenge("", "", "any_verifier") {
+		t.Error("VerifyCodeChallenge() should return true when no code_challenge")
+	}
+
+	if !VerifyCodeChallenge("", "", "") {
+		t.Error("VerifyCodeChallenge() should return true when both empty")
+	}
+}
+
+func TestVerifyCodeChallenge_MissingVerifier(t *testing.T) {
+	// 有 code_challenge 但没有 code_verifier
+	if VerifyCodeChallenge("some_challenge", CodeChallengeMethodS256, "") {
+		t.Error("VerifyCodeChallenge() should return false when code_verifier is missing")
+	}
+}
+
+func TestVerifyCodeChallenge_DefaultMethod(t *testing.T) {
+	// 空方法应默认使用 S256
+	codeVerifier := "test_verifier_for_default_method"
+	codeChallenge := GenerateCodeChallenge(codeVerifier, CodeChallengeMethodS256)
+
+	if !VerifyCodeChallenge(codeChallenge, "", codeVerifier) {
+		t.Error("VerifyCodeChallenge() should default to S256 when method is empty")
+	}
+}
+
+func TestVerifyCodeChallenge_UnsupportedMethod(t *testing.T) {
+	if VerifyCodeChallenge("challenge", "unsupported_method", "verifier") {
+		t.Error("VerifyCodeChallenge() should return false for unsupported method")
+	}
+}
+
+func TestGenerateCodeChallenge(t *testing.T) {
+	codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+
+	// S256
+	s256Challenge := GenerateCodeChallenge(codeVerifier, CodeChallengeMethodS256)
+	if s256Challenge == "" {
+		t.Error("GenerateCodeChallenge(S256) should not return empty")
+	}
+	if s256Challenge == codeVerifier {
+		t.Error("GenerateCodeChallenge(S256) should not equal code_verifier")
+	}
+
+	// Plain
+	plainChallenge := GenerateCodeChallenge(codeVerifier, CodeChallengeMethodPlain)
+	if plainChallenge != codeVerifier {
+		t.Errorf("GenerateCodeChallenge(plain) = %v, want %v", plainChallenge, codeVerifier)
+	}
+
+	// 空方法默认为 S256
+	defaultChallenge := GenerateCodeChallenge(codeVerifier, "")
+	if defaultChallenge != s256Challenge {
+		t.Error("GenerateCodeChallenge() should default to S256")
+	}
+
+	// 不支持的方法返回空
+	unsupportedChallenge := GenerateCodeChallenge(codeVerifier, "unsupported")
+	if unsupportedChallenge != "" {
+		t.Error("GenerateCodeChallenge() should return empty for unsupported method")
+	}
+}
+
+func TestRandomCodeVerifier(t *testing.T) {
+	verifier := RandomCodeVerifier()
+
+	// RFC 7636: code_verifier 长度应在 43-128 之间
+	if len(verifier) < 43 || len(verifier) > 128 {
+		t.Errorf("RandomCodeVerifier() length = %v, want 43-128", len(verifier))
+	}
+
+	// 验证生成的 verifier 可以与 challenge 配合使用
+	challenge := GenerateCodeChallenge(verifier, CodeChallengeMethodS256)
+	if !VerifyCodeChallenge(challenge, CodeChallengeMethodS256, verifier) {
+		t.Error("RandomCodeVerifier() should generate valid verifier")
+	}
+}
+
 // 辅助函数
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstr(s, substr))

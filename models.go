@@ -42,10 +42,12 @@ type ErrorResponse struct {
 
 // CodeValue 授权码存储值 / Authorization code storage value
 type CodeValue struct {
-	ClientID    string   `json:"client_id"`    // 客户端ID / Client identifier
-	OpenID      string   `json:"open_id"`      // 用户唯一标识 / User unique identifier
-	RedirectURI string   `json:"redirect_uri"` // 重定向URI / Redirect URI
-	Scope       []string `json:"scope"`        // 授权范围 / Authorized scopes
+	ClientID            string   `json:"client_id"`                       // 客户端ID / Client identifier
+	OpenID              string   `json:"open_id"`                         // 用户唯一标识 / User unique identifier
+	RedirectURI         string   `json:"redirect_uri"`                    // 重定向URI / Redirect URI
+	Scope               []string `json:"scope"`                           // 授权范围 / Authorized scopes
+	CodeChallenge       string   `json:"code_challenge,omitempty"`        // PKCE code_challenge (RFC 7636)
+	CodeChallengeMethod string   `json:"code_challenge_method,omitempty"` // PKCE method: plain or S256 (RFC 7636)
 }
 
 // MarshalBinary 序列化为JSON二进制 / Serialize to JSON binary

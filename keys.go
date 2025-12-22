@@ -43,4 +43,12 @@ const (
 	TokenTypeHintKey = "token_type_hint"
 	// ImplicitKey 隐式授权模式 / Implicit grant type
 	ImplicitKey = "implicit"
+
+	// PKCE 相关参数键 / PKCE related parameter keys (RFC 7636)
+	// CodeChallengeKey PKCE code_challenge 参数 / PKCE code_challenge parameter
+	CodeChallengeKey = "code_challenge"
+	// CodeChallengeMethodKey PKCE code_challenge_method 参数 / PKCE code_challenge_method parameter
+	CodeChallengeMethodKey = "code_challenge_method"
+	// CodeVerifierKey PKCE code_verifier 参数 / PKCE code_verifier parameter
+	CodeVerifierKey = "code_verifier"
 )

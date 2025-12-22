@@ -15,4 +15,10 @@ const (
 	ScopeRefreshToken = "refresh_token"
 	// DefaultJwtIssuer 默认JWT颁发者 / Default JWT issuer
 	DefaultJwtIssuer = "github.com/nilorg/oauth2"
+
+	// PKCE 相关常量 / PKCE related constants (RFC 7636)
+	// CodeChallengeMethodPlain 明文方法 / Plain method
+	CodeChallengeMethodPlain = "plain"
+	// CodeChallengeMethodS256 SHA256方法 / SHA256 method
+	CodeChallengeMethodS256 = "S256"
 )

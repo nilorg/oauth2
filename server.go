@@ -107,6 +107,9 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	scope := r.FormValue(ScopeKey)
 	state := r.FormValue(StateKey)
 	redirectURIStr := r.FormValue(RedirectURIKey)
+	// PKCE 参数 (RFC 7636)
+	codeChallenge := r.FormValue(CodeChallengeKey)
+	codeChallengeMethod := r.FormValue(CodeChallengeMethodKey)
 	redirectURI, err := url.Parse(redirectURIStr)
 	if err != nil {
 		WriterError(w, ErrInvalidRequest)
@@ -150,7 +153,7 @@ func (srv *Server) HandleAuthorize(w http.ResponseWriter, r *http.Request) {
 	switch responseType {
 	case CodeKey:
 		var code string
-		code, err = srv.authorizeAuthorizationCode(ctx, clientID, redirectURIStr, scope, openID)
+		code, err = srv.authorizeAuthorizationCode(ctx, clientID, redirectURIStr, scope, openID, codeChallenge, codeChallengeMethod)
 		if err != nil {
 			RedirectError(w, r, redirectURI, err)
 		} else {
@@ -332,6 +335,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 	case AuthorizationCodeKey:
 		code := r.PostFormValue(CodeKey)
 		redirectURIStr := r.PostFormValue(RedirectURIKey)
+		codeVerifier := r.PostFormValue(CodeVerifierKey) // PKCE code_verifier
 		if clientID == "" {
 			clientID = r.PostFormValue(ClientIDKey)
 		}
@@ -340,7 +344,7 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var model *TokenResponse
-		model, err = srv.tokenAuthorizationCode(ctx, reqClientBasic, clientID, code, redirectURIStr)
+		model, err = srv.tokenAuthorizationCode(ctx, reqClientBasic, clientID, code, redirectURIStr, codeVerifier)
 		if err != nil {
 			WriterError(w, err)
 		} else {
@@ -394,11 +398,11 @@ func (srv *Server) HandleToken(w http.ResponseWriter, r *http.Request) {
 }
 
 // 授权码（authorization-code）
-func (srv *Server) authorizeAuthorizationCode(ctx context.Context, clientID, redirectURI, scope, openID string) (code string, err error) {
-	return srv.GenerateCode(ctx, clientID, openID, redirectURI, StringSplit(scope, " "))
+func (srv *Server) authorizeAuthorizationCode(ctx context.Context, clientID, redirectURI, scope, openID, codeChallenge, codeChallengeMethod string) (code string, err error) {
+	return srv.GenerateCode(ctx, clientID, openID, redirectURI, StringSplit(scope, " "), codeChallenge, codeChallengeMethod)
 }
 
-func (srv *Server) tokenAuthorizationCode(ctx context.Context, client *ClientBasic, clientID, code, redirectURI string) (token *TokenResponse, err error) {
+func (srv *Server) tokenAuthorizationCode(ctx context.Context, client *ClientBasic, clientID, code, redirectURI, codeVerifier string) (token *TokenResponse, err error) {
 	if client.ID != clientID {
 		err = ErrInvalidClient
 		return
@@ -406,6 +410,18 @@ func (srv *Server) tokenAuthorizationCode(ctx context.Context, client *ClientBas
 	var value *CodeValue
 	value, err = srv.VerifyCode(ctx, code, client.ID, redirectURI)
 	if err != nil {
+		return
+	}
+	// 验证 CodeValue.ClientID 与请求的 clientID 是否匹配 (RFC 6749 Section 4.1.3)
+	// Verify CodeValue.ClientID matches the requesting clientID
+	if value.ClientID != clientID {
+		err = ErrInvalidGrant
+		return
+	}
+	// PKCE 验证 (RFC 7636 Section 4.6)
+	// 如果授权请求包含 code_challenge，则必须验证 code_verifier
+	if !VerifyCodeChallenge(value.CodeChallenge, value.CodeChallengeMethod, codeVerifier) {
+		err = ErrInvalidGrant
 		return
 	}
 	scope := strings.Join(value.Scope, " ")
