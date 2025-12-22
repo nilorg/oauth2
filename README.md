@@ -13,6 +13,7 @@ Go implementation of OAuth 2.0 Authorization Framework with SaaS multi-tenant su
 - ✅ 设备授权模式 (Device Code) - [RFC 8628](https://tools.ietf.org/html/rfc8628)
 - ✅ 令牌内省 (Token Introspection) - [RFC 7662](https://tools.ietf.org/html/rfc7662)
 - ✅ 令牌撤销 (Token Revocation) - [RFC 7009](https://tools.ietf.org/html/rfc7009)
+- ✅ **PKCE 支持** - [RFC 7636](https://tools.ietf.org/html/rfc7636) 增强公开客户端安全性
 - ✅ **SaaS 多租户动态 Issuer** - 根据请求域名动态生成 JWT issuer
 - ✅ **SaaS 多租户动态 JWT 密钥** - 每个租户使用独立的签名密钥
 - ✅ **反向代理支持** - 支持 X-Forwarded-* 头部
@@ -99,6 +100,50 @@ srv.AccessToken = oauth2.NewMultiTenantAccessToken(func(ctx context.Context, iss
 })
 ```
 
+## PKCE Support / PKCE 支持
+
+PKCE (Proof Key for Code Exchange) 是 [RFC 7636](https://tools.ietf.org/html/rfc7636) 定义的扩展，用于增强公开客户端（如移动应用、单页应用）的安全性。
+
+### 客户端实现 / Client Implementation
+
+```go
+// 1. 生成 code_verifier 和 code_challenge
+codeVerifier := oauth2.RandomCodeVerifier()
+codeChallenge := oauth2.GenerateCodeChallenge(codeVerifier, oauth2.CodeChallengeMethodS256)
+
+// 2. 授权请求中包含 code_challenge
+// GET /authorize?response_type=code&client_id=xxx&redirect_uri=xxx
+//     &code_challenge=xxx&code_challenge_method=S256
+
+// 3. Token 请求中包含 code_verifier
+// POST /token
+//     grant_type=authorization_code&code=xxx&code_verifier=xxx
+```
+
+### 服务端实现 / Server Implementation
+
+```go
+// GenerateCode 需要存储 PKCE 参数
+srv.GenerateCode = func(ctx context.Context, clientID, openID, redirectURI string, 
+    scope []string, codeChallenge, codeChallengeMethod string) (string, error) {
+    code := oauth2.RandomCode()
+    // 存储: code -> {clientID, openID, redirectURI, scope, codeChallenge, codeChallengeMethod}
+    return code, nil
+}
+
+// VerifyCode 需要返回 PKCE 参数
+srv.VerifyCode = func(ctx context.Context, code, clientID, redirectURI string) (*oauth2.CodeValue, error) {
+    // 从存储中获取
+    return &oauth2.CodeValue{
+        ClientID:            clientID,
+        RedirectURI:         redirectURI,
+        Scope:               []string{"read", "write"},
+        CodeChallenge:       savedCodeChallenge,       // PKCE
+        CodeChallengeMethod: savedCodeChallengeMethod, // PKCE
+    }, nil
+}
+```
+
 ## Examples / 示例
 
 [oauth2-server](https://github.com/nilorg/oauth2-server)
@@ -109,9 +154,10 @@ srv.AccessToken = oauth2.NewMultiTenantAccessToken(func(ctx context.Context, iss
 
 1. [《理解OAuth 2.0》阮一峰](http://www.ruanyifeng.com/blog/2014/05/oauth_2_0.html)
 2. [RFC 6749 - The OAuth 2.0 Authorization Framework](https://tools.ietf.org/html/rfc6749)
-3. [RFC 8628 - OAuth 2.0 Device Authorization Grant](https://tools.ietf.org/html/rfc8628)
-4. [RFC 7662 - OAuth 2.0 Token Introspection](https://tools.ietf.org/html/rfc7662)
-5. [RFC 7009 - OAuth 2.0 Token Revocation](https://tools.ietf.org/html/rfc7009)
+3. [RFC 7636 - Proof Key for Code Exchange (PKCE)](https://tools.ietf.org/html/rfc7636)
+4. [RFC 8628 - OAuth 2.0 Device Authorization Grant](https://tools.ietf.org/html/rfc8628)
+5. [RFC 7662 - OAuth 2.0 Token Introspection](https://tools.ietf.org/html/rfc7662)
+6. [RFC 7009 - OAuth 2.0 Token Revocation](https://tools.ietf.org/html/rfc7009)
 
 ## Grant Types / 授权模式
 
@@ -150,6 +196,21 @@ srv.AccessToken = oauth2.NewMultiTenantAccessToken(func(ctx context.Context, iss
 |----------|-------------|
 | `NewDefaultAccessToken(key)` | 创建静态密钥的 AccessToken 处理器（单租户） |
 | `NewMultiTenantAccessToken(fn)` | 创建动态密钥的 AccessToken 处理器（多租户） |
+
+### PKCE 工具函数 / PKCE Utility Functions
+
+| Function | Description |
+|----------|-------------|
+| `RandomCodeVerifier()` | 生成随机的 code_verifier (43字符) |
+| `GenerateCodeChallenge(verifier, method)` | 根据 verifier 生成 code_challenge |
+| `VerifyCodeChallenge(challenge, method, verifier)` | 验证 code_verifier 是否匹配 |
+
+### PKCE 常量 / PKCE Constants
+
+| Constant | Description |
+|----------|-------------|
+| `CodeChallengeMethodPlain` | PKCE plain 方法 |
+| `CodeChallengeMethodS256` | PKCE S256 方法 (推荐) |
 
 ## Complete Server Example / 完整服务器示例
 
@@ -198,11 +259,15 @@ func main() {
             ClientID:    clientID,
             RedirectURI: redirectURI,
             Scope:       []string{"read", "write"},
+            // PKCE: 如果启用 PKCE，需要从存储中返回 CodeChallenge 和 CodeChallengeMethod
         }, nil
     }
 
-    srv.GenerateCode = func(ctx context.Context, clientID, openID, redirectURI string, scope []string) (string, error) {
-        return oauth2.RandomCode(), nil
+    srv.GenerateCode = func(ctx context.Context, clientID, openID, redirectURI string, 
+        scope []string, codeChallenge, codeChallengeMethod string) (string, error) {
+        code := oauth2.RandomCode()
+        // 存储 code 信息，包括 PKCE 参数
+        return code, nil
     }
 
     srv.VerifyRedirectURI = func(ctx context.Context, clientID, redirectURI string) error {
@@ -274,6 +339,30 @@ curl -X POST http://localhost:8003/oauth2/token \
 curl -X POST http://localhost:8003/oauth2/token \
   -u oauth2_client:password \
   -d 'grant_type=client_credentials&scope=read'
+
+# Refresh Token (所有 grant_type 都支持刷新)
+curl -X POST http://localhost:8003/oauth2/token \
+  -u oauth2_client:password \
+  -d 'grant_type=refresh_token&refresh_token=YOUR_REFRESH_TOKEN'
+```
+
+### PKCE 测试 / PKCE Test
+
+```bash
+# 1. 生成 code_verifier 和 code_challenge (S256)
+# code_verifier: dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+# code_challenge: E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+
+# 2. 授权请求 (包含 code_challenge)
+# GET /oauth2/authorize?response_type=code&client_id=oauth2_client
+#     &redirect_uri=http://localhost:8080/callback
+#     &code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+#     &code_challenge_method=S256
+
+# 3. Token 请求 (包含 code_verifier)
+curl -X POST http://localhost:8003/oauth2/token \
+  -u oauth2_client:password \
+  -d 'grant_type=authorization_code&code=YOUR_CODE&redirect_uri=http://localhost:8080/callback&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
 ```
 
 ## JWT Payload / JWT 载荷
