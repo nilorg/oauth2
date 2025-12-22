@@ -94,13 +94,18 @@ func main() {
 			ClientID:    clientID,
 			RedirectURI: redirectURI,
 			Scope:       []string{"read", "write"},
+			// PKCE: 从存储中获取 code_challenge 和 code_challenge_method
+			// PKCE: get code_challenge and code_challenge_method from storage
+			// CodeChallenge:       savedCodeChallenge,
+			// CodeChallengeMethod: savedCodeChallengeMethod,
 		}
 		return
 	}
-	srv.GenerateCode = func(ctx context.Context, clientID, openID, redirectURI string, scope []string) (code string, err error) {
+	srv.GenerateCode = func(ctx context.Context, clientID, openID, redirectURI string, scope []string, codeChallenge, codeChallengeMethod string) (code string, err error) {
 		code = oauth2.RandomCode()
-		// 将code存储到缓存/数据库
-		// Store code to cache/database
+		// 将code存储到缓存/数据库，包括 PKCE 参数
+		// Store code to cache/database, including PKCE parameters
+		// 存储: code -> {clientID, openID, redirectURI, scope, codeChallenge, codeChallengeMethod}
 		return
 	}
 	srv.VerifyRedirectURI = func(ctx context.Context, clientID, redirectURI string) (err error) {
