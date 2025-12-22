@@ -462,8 +462,9 @@ func TestServer_HandleToken_Password_InvalidCredentials(t *testing.T) {
 
 	srv.HandleToken(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("HandleToken() status = %v, want %v", w.Code, http.StatusUnauthorized)
+	// RFC 6749 Section 5.2: invalid_grant returns 400 Bad Request
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("HandleToken() status = %v, want %v", w.Code, http.StatusBadRequest)
 	}
 }
 
@@ -530,8 +531,9 @@ func TestServer_HandleToken_AuthorizationCode_InvalidCode(t *testing.T) {
 
 	srv.HandleToken(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("HandleToken() status = %v, want %v", w.Code, http.StatusUnauthorized)
+	// RFC 6749 Section 5.2: invalid_grant returns 400 Bad Request
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("HandleToken() status = %v, want %v", w.Code, http.StatusBadRequest)
 	}
 }
 
@@ -669,8 +671,9 @@ func TestServer_HandleToken_UnsupportedGrantType(t *testing.T) {
 
 	srv.HandleToken(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("HandleToken() status = %v, want %v", w.Code, http.StatusUnauthorized)
+	// RFC 6749 Section 5.2: unsupported_grant_type returns 400 Bad Request
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("HandleToken() status = %v, want %v", w.Code, http.StatusBadRequest)
 	}
 }
 
@@ -798,9 +801,9 @@ func TestServer_HandleToken_DeviceCode_Pending(t *testing.T) {
 
 	srv.HandleToken(w, req)
 
-	// authorization_pending 返回 428
-	if w.Code != http.StatusPreconditionRequired {
-		t.Errorf("HandleToken(device_code pending) status = %v, want %v", w.Code, http.StatusPreconditionRequired)
+	// RFC 8628 Section 3.5: authorization_pending returns 400 Bad Request
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("HandleToken(device_code pending) status = %v, want %v", w.Code, http.StatusBadRequest)
 	}
 }
 
@@ -1087,8 +1090,9 @@ func TestServer_HandleToken_VerifyGrantTypeFail(t *testing.T) {
 
 	srv.HandleToken(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("HandleToken() status = %v, want %v", w.Code, http.StatusUnauthorized)
+	// RFC 6749 Section 5.2: unauthorized_client returns 400 Bad Request
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("HandleToken() status = %v, want %v", w.Code, http.StatusBadRequest)
 	}
 }
 
@@ -1172,8 +1176,9 @@ func TestServer_HandleDeviceAuthorization_VerifyGrantTypeFail(t *testing.T) {
 
 	srv.HandleDeviceAuthorization(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("HandleDeviceAuthorization() status = %v, want %v", w.Code, http.StatusUnauthorized)
+	// RFC 6749 Section 5.2: unauthorized_client returns 400 Bad Request
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("HandleDeviceAuthorization() status = %v, want %v", w.Code, http.StatusBadRequest)
 	}
 }
 

@@ -106,20 +106,24 @@ var (
 		ErrUnsupportedTokenType.Error():    ErrUnsupportedTokenType,
 	}
 	// ErrStatusCodes 错误对应的HTTP状态码映射表 / HTTP status codes mapping for errors
+	// 根据 RFC 6749 Section 5.2，Token 端点错误应返回 400 Bad Request
+	// 仅 invalid_client 在客户端认证失败时返回 401
+	// According to RFC 6749 Section 5.2, token endpoint errors should return 400 Bad Request
+	// Only invalid_client returns 401 when client authentication fails
 	ErrStatusCodes = map[error]int{
-		ErrInvalidRequest:          http.StatusBadRequest,           // 400
-		ErrUnauthorizedClient:      http.StatusUnauthorized,         // 401
-		ErrAccessDenied:            http.StatusForbidden,            // 403
-		ErrUnsupportedResponseType: http.StatusUnauthorized,         // 401
-		ErrInvalidScope:            http.StatusBadRequest,           // 400
-		ErrServerError:             http.StatusInternalServerError,  // 400
-		ErrTemporarilyUnavailable:  http.StatusServiceUnavailable,   // 503
-		ErrInvalidClient:           http.StatusUnauthorized,         // 401
-		ErrInvalidGrant:            http.StatusUnauthorized,         // 401
-		ErrUnsupportedGrantType:    http.StatusUnauthorized,         // 401
-		ErrExpiredToken:            http.StatusUnauthorized,         // 401
-		ErrAuthorizationPending:    http.StatusPreconditionRequired, // 428
-		ErrSlowDown:                http.StatusForbidden,            // 403 https://tools.ietf.org/html/rfc6749#section-5.2
-		ErrUnsupportedTokenType:    http.StatusServiceUnavailable,   // 503 https://tools.ietf.org/html/rfc7009#section-2.2.1
+		ErrInvalidRequest:          http.StatusBadRequest,          // 400 - RFC 6749 Section 5.2
+		ErrUnauthorizedClient:      http.StatusBadRequest,          // 400 - RFC 6749 Section 5.2
+		ErrAccessDenied:            http.StatusForbidden,           // 403 - RFC 6749 Section 4.1.2.1
+		ErrUnsupportedResponseType: http.StatusBadRequest,          // 400 - RFC 6749 Section 4.1.2.1
+		ErrInvalidScope:            http.StatusBadRequest,          // 400 - RFC 6749 Section 5.2
+		ErrServerError:             http.StatusInternalServerError, // 500 - RFC 6749 Section 4.1.2.1
+		ErrTemporarilyUnavailable:  http.StatusServiceUnavailable,  // 503 - RFC 6749 Section 4.1.2.1
+		ErrInvalidClient:           http.StatusUnauthorized,        // 401 - RFC 6749 Section 5.2
+		ErrInvalidGrant:            http.StatusBadRequest,          // 400 - RFC 6749 Section 5.2
+		ErrUnsupportedGrantType:    http.StatusBadRequest,          // 400 - RFC 6749 Section 5.2
+		ErrExpiredToken:            http.StatusUnauthorized,        // 401 - RFC 8628 Section 3.5
+		ErrAuthorizationPending:    http.StatusBadRequest,          // 400 - RFC 8628 Section 3.5
+		ErrSlowDown:                http.StatusBadRequest,          // 400 - RFC 8628 Section 3.5
+		ErrUnsupportedTokenType:    http.StatusServiceUnavailable,  // 503 - RFC 7009 Section 2.2.1
 	}
 )

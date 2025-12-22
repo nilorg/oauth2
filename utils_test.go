@@ -91,12 +91,12 @@ func TestWriterError(t *testing.T) {
 	}{
 		{"InvalidRequest", ErrInvalidRequest, http.StatusBadRequest},
 		{"InvalidClient", ErrInvalidClient, http.StatusUnauthorized},
-		{"InvalidGrant", ErrInvalidGrant, http.StatusUnauthorized},
-		{"UnauthorizedClient", ErrUnauthorizedClient, http.StatusUnauthorized},
-		{"UnsupportedGrantType", ErrUnsupportedGrantType, http.StatusUnauthorized},
+		{"InvalidGrant", ErrInvalidGrant, http.StatusBadRequest},                 // RFC 6749 Section 5.2
+		{"UnauthorizedClient", ErrUnauthorizedClient, http.StatusBadRequest},     // RFC 6749 Section 5.2
+		{"UnsupportedGrantType", ErrUnsupportedGrantType, http.StatusBadRequest}, // RFC 6749 Section 5.2
 		{"InvalidScope", ErrInvalidScope, http.StatusBadRequest},
 		{"AccessDenied", ErrAccessDenied, http.StatusForbidden},
-		{"UnsupportedResponseType", ErrUnsupportedResponseType, http.StatusUnauthorized},
+		{"UnsupportedResponseType", ErrUnsupportedResponseType, http.StatusBadRequest}, // RFC 6749 Section 4.1.2.1
 		{"ServerError", ErrServerError, http.StatusInternalServerError},
 		{"TemporarilyUnavailable", ErrTemporarilyUnavailable, http.StatusServiceUnavailable},
 	}
