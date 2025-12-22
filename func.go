@@ -156,28 +156,76 @@ type AccessTokener interface {
 	Parse(ctx context.Context, accessToken string) (claims *JwtClaims, err error)
 }
 
+// JwtKeyFunc 动态获取JWT密钥的函数类型，用于SaaS多租户场景
+// Dynamic JWT key function type for SaaS multi-tenant scenarios
+// ctx 中包含 IssuerRequest 信息，可通过 IssuerRequestFromContext 获取
+type JwtKeyFunc func(ctx context.Context, issuer string) []byte
+
 type DefaultAccessToken struct {
 	AccessTokener
-	JwtVerifyKey []byte
+	JwtVerifyKey []byte     // 静态密钥 / Static key
+	JwtKeyFunc   JwtKeyFunc // 动态密钥函数，优先级高于静态密钥 / Dynamic key function, takes precedence over static key
 }
 
+// NewDefaultAccessToken 创建默认AccessToken处理器（静态密钥）
+// Create default AccessToken handler with static key
 func NewDefaultAccessToken(jwtVerifyKey []byte) *DefaultAccessToken {
 	return &DefaultAccessToken{
 		JwtVerifyKey: jwtVerifyKey,
 	}
 }
 
+// NewMultiTenantAccessToken 创建多租户AccessToken处理器（动态密钥）
+// Create multi-tenant AccessToken handler with dynamic key
+// 示例 / Example:
+//
+//	NewMultiTenantAccessToken(func(ctx context.Context, issuer string) []byte {
+//	    // 根据 issuer 从数据库/配置中获取对应租户的密钥
+//	    // Get tenant's key from database/config based on issuer
+//	    return getTenantJwtKey(issuer)
+//	})
+func NewMultiTenantAccessToken(jwtKeyFunc JwtKeyFunc) *DefaultAccessToken {
+	return &DefaultAccessToken{
+		JwtKeyFunc: jwtKeyFunc,
+	}
+}
+
+// getKey 获取JWT密钥
+func (d *DefaultAccessToken) getKey(ctx context.Context, issuer string) []byte {
+	if d.JwtKeyFunc != nil {
+		return d.JwtKeyFunc(ctx, issuer)
+	}
+	return d.JwtVerifyKey
+}
+
 // Generate 生成AccessToken
 func (d *DefaultAccessToken) Generate(ctx context.Context, issuer, clientID, scope, openID string, code *CodeValue) (token *TokenResponse, err error) {
-	return NewDefaultGenerateAccessToken(d.JwtVerifyKey)(ctx, issuer, clientID, scope, openID, code)
+	jwtKey := d.getKey(ctx, issuer)
+	return NewDefaultGenerateAccessToken(jwtKey)(ctx, issuer, clientID, scope, openID, code)
 }
 
 // Refresh 刷新AccessToken
 func (d *DefaultAccessToken) Refresh(ctx context.Context, clientID, refreshToken string) (token *TokenResponse, err error) {
-	return NewDefaultRefreshAccessToken(d.JwtVerifyKey)(ctx, clientID, refreshToken)
+	// 刷新时需要先解析token获取issuer
+	// When refreshing, need to parse token first to get issuer
+	claims, parseErr := ParseHS256JwtClaimsTokenUnverified(refreshToken)
+	if parseErr != nil {
+		err = ErrInvalidGrant
+		return
+	}
+	jwtKey := d.getKey(ctx, claims.Issuer)
+	return NewDefaultRefreshAccessToken(jwtKey)(ctx, clientID, refreshToken)
 }
 
 // Parse 解析AccessToken
 func (d *DefaultAccessToken) Parse(ctx context.Context, accessToken string) (claims *JwtClaims, err error) {
-	return NewDefaultParseAccessToken(d.JwtVerifyKey)(ctx, accessToken)
+	// 解析时需要先获取issuer
+	// When parsing, need to get issuer first
+	claims, parseErr := ParseHS256JwtClaimsTokenUnverified(accessToken)
+	if parseErr != nil {
+		err = parseErr
+		return
+	}
+	jwtKey := d.getKey(ctx, claims.Issuer)
+	return NewDefaultParseAccessToken(jwtKey)(ctx, accessToken)
 }
