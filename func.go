@@ -94,6 +94,17 @@ func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc 
 type ParseAccessTokenFunc func(ctx context.Context, accessToken string) (claims *JwtClaims, err error)
 
 // NewDefaultRefreshAccessToken 创建默认刷新AccessToken方法
+// Create default refresh access token method
+//
+// 注意/Note: 当前实现要求 access_token.Subject == clientID 才能刷新令牌。
+// 这意味着 client_credentials 模式（openID 为空）生成的令牌无法刷新。
+// RFC 6749 未强制要求此行为，这是当前实现的设计选择。
+// 如需支持 client_credentials 刷新，可自定义 RefreshAccessTokenFunc。
+//
+// Current implementation requires access_token.Subject == clientID to refresh.
+// This means tokens from client_credentials grant (empty openID) cannot be refreshed.
+// RFC 6749 does not mandate this behavior; it's a design choice of this implementation.
+// To support client_credentials refresh, implement a custom RefreshAccessTokenFunc.
 func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 	return func(ctx context.Context, clientID, refreshToken string) (token *TokenResponse, err error) {
 		var refreshTokenClaims *JwtClaims
@@ -101,6 +112,8 @@ func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 		if err != nil {
 			return
 		}
+		// 验证 refresh_token 的 Subject 是否为当前客户端
+		// Verify refresh_token Subject matches current client
 		if refreshTokenClaims.Subject != clientID {
 			err = ErrUnauthorizedClient
 			return
@@ -116,6 +129,10 @@ func NewDefaultRefreshAccessToken(jwtVerifyKey []byte) RefreshAccessTokenFunc {
 		if err != nil {
 			return
 		}
+		// 验证原 access_token 的 Subject 是否为当前客户端
+		// 注意: 此检查导致 client_credentials 模式无法刷新（因为其 Subject 为空）
+		// Verify original access_token Subject matches current client
+		// Note: This check prevents client_credentials refresh (as its Subject is empty)
 		if tokenClaims.Subject != clientID {
 			err = ErrUnauthorizedClient
 			return
