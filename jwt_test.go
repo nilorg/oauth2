@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// HS256 需要 32 字节密钥
+var jwtTestKey = []byte("12345678901234567890123456789012")
+
 func TestGenerateToken(t *testing.T) {
 	cl := JwtClaims{
 		JwtStandardClaims: JwtStandardClaims{
@@ -17,7 +20,7 @@ func TestGenerateToken(t *testing.T) {
 			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
 		},
 	}
-	token, err := NewHS256JwtClaimsToken(&cl, []byte("test"))
+	token, err := NewHS256JwtClaimsToken(&cl, jwtTestKey)
 	if err != nil {
 		t.Error(err)
 		return
@@ -26,7 +29,24 @@ func TestGenerateToken(t *testing.T) {
 }
 
 func TestParseJwtToken(t *testing.T) {
-	tokenClaims, err := ParseHS256JwtClaimsToken("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsib2F1dGgyLWNsaWVudC10ZXN0Il0sImV4cCI6MTU4OTc4OTUyMCwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwIiwibmJmIjoxNTg5NzAzMTIwLCJzdWIiOiJzdWJqZWN0In0.D0h0tKcGf2t7FwE5tkxZ8zTLozUFHfteKFU6tuL3dWA", []byte("test"))
+	// 先生成一个新的 token 用于测试
+	cl := JwtClaims{
+		JwtStandardClaims: JwtStandardClaims{
+			Subject:   "subject",
+			Issuer:    "http://localhost:8080",
+			NotBefore: time.Now().Unix(),
+			Audience: []string{
+				"oauth2-client-test",
+			},
+			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
+		},
+	}
+	token, err := NewHS256JwtClaimsToken(&cl, jwtTestKey)
+	if err != nil {
+		t.Fatalf("Failed to generate token: %v", err)
+	}
+
+	tokenClaims, err := ParseHS256JwtClaimsToken(token, jwtTestKey)
 	if err != nil {
 		t.Error(err)
 		return

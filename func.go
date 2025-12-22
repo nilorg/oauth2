@@ -70,7 +70,8 @@ func NewDefaultGenerateAccessToken(jwtVerifyKey []byte) GenerateAccessTokenFunc 
 			return
 		}
 
-		refreshAccessJwtClaims := NewJwtClaims(issuer, clientID, ScopeRefreshToken, "")
+		// refresh token 的 Subject 设置为 clientID，用于刷新时验证
+		refreshAccessJwtClaims := NewJwtClaims(issuer, clientID, ScopeRefreshToken, clientID)
 		refreshAccessJwtClaims.ID = tokenStr
 		var refreshTokenStr string
 		refreshTokenStr, err = NewHS256JwtClaimsToken(refreshAccessJwtClaims, jwtVerifyKey)
